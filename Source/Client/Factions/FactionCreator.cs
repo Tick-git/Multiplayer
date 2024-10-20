@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using JetBrains.Annotations;
 using Multiplayer.API;
@@ -37,9 +38,10 @@ public static class FactionCreator
 
         LongEventHandler.QueueLongEvent(() =>
         {
-            PrepareGameInitData(playerId);
-
             var scenario = scenarioDef?.scenario ?? Current.Game.Scenario;
+
+            PrepareGameInitData(playerId, scenario);
+
             var newFaction = NewFactionWithIdeo(
                 factionName,
                 scenario.playerFaction.factionDef,
@@ -70,14 +72,49 @@ public static class FactionCreator
 
                 Multiplayer.game.ChangeRealPlayerFaction(newFaction);
 
+                CameraJumper.TryJump(MapGenerator.playerStartSpotInt, newMap);
+
+                PostGameStart(scenario);
+
                 // todo setting faction of self
                 Multiplayer.Client.Send(
                     Packets.Client_SetFaction,
                     Multiplayer.session.playerId,
                     newFaction.loadID
-                );
+                );                
             }
         }, "GeneratingMap", doAsynchronously: true, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
+    }
+
+    private static void PostGameStart(Scenario scenario)
+    {
+        /**
+        ScenPart_StartingResearch.cs				
+        ScenPart_AutoActivateMonolith.cs		
+        ScenPart_CreateIncident.cs		
+        ScenPart_GameStartDialog.cs			
+        ScenPart_PlayerFaction.cs		
+        ScenPart_Rule.cs
+
+        Would like to call PostGameStart on all implementations (scenario.PostGameStart) -
+        but dont know if it breaks with dlcs other than biotech
+        **/
+        
+        HashSet<Type> types = new HashSet<Type>
+        {
+            typeof(ScenPart_PlayerFaction),
+            typeof(ScenPart_GameStartDialog),
+            typeof(ScenPart_StartingResearch),
+            typeof(ScenPart_CreateIncident), // nicht sicher
+        };
+
+        foreach (ScenPart part in scenario.AllParts)
+        {
+            if (types.Contains(part.GetType()))
+            {
+                part.PostGameStart();
+            }
+        }
     }
 
     private static Map GenerateNewMap(int tile, Scenario scenario)
@@ -86,10 +123,14 @@ public static class FactionCreator
         Find.GameInitData.playerFaction = null;
         Find.GameInitData.PrepForMapGen();
 
-        var mapParent = (Settlement)WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
+        // ScenPart_PlayerFaction --> PreMapGenerate 
+
+        var mapParent = (Settlement) WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
         mapParent.Tile = tile;
         mapParent.SetFaction(Faction.OfPlayer);
         Find.WorldObjects.Add(mapParent);
+
+        // ^^^^ Duplicate Code here ^^^^
 
         var prevScenario = Find.Scenario;
         Current.Game.Scenario = scenario;
@@ -97,11 +138,16 @@ public static class FactionCreator
 
         try
         {
-            return GetOrGenerateMapUtility.GetOrGenerateMap(
+            Map map = GetOrGenerateMapUtility.GetOrGenerateMap(
                 tile,
                 new IntVec3(250, 1, 250),
                 null
             );
+
+            GetOrGenerateMapUtility.UnfogMapFromEdge(map);
+            SetAllItemsOnMapForbidden(map);
+
+            return map;
         }
         finally
         {
@@ -110,19 +156,44 @@ public static class FactionCreator
         }
     }
 
+    // Temporary workaround for the fact that the map is generated with all items allowed
+    private static void SetAllItemsOnMapForbidden(Map map)
+    {
+        foreach (IntVec3 cell in map.AllCells)
+        {
+            List<Thing> thingsInCell = map.thingGrid.ThingsListAt(cell);
+
+            foreach (Thing thing in thingsInCell)
+            {
+                if (thing.def.category == ThingCategory.Item)
+                {
+                    thing.SetForbidden(true, false);
+                }
+            }
+        }
+    }
+
     private static void InitNewGame()
     {
+        // ScenPart_PlayerPawnsArriveMethod --> PostMapGenerate
+
         PawnUtility.GiveAllStartingPlayerPawnsThought(ThoughtDefOf.NewColonyOptimism);
+
+        // ^^^^
+
         ResearchUtility.ApplyPlayerStartingResearch();
     }
 
-    private static void PrepareGameInitData(int sessionId)
+    private static void PrepareGameInitData(int sessionId, Scenario scenario)
     {
-        Current.Game.InitData = new GameInitData
+        if(Current.Game.InitData == null)
         {
-            startingPawnCount = 3,
-            gameToLoad = "dummy" // Prevent special calculation path in GenTicks.TicksAbs
-        };
+            Current.Game.InitData = new GameInitData()
+            {
+                startingPawnCount = FactionSidebar.GetStartingPawnsConfigForScenario(scenario).TotalPawnCount,
+                gameToLoad = "dummy"
+            };
+        }
 
         if (pawnStore.TryGetValue(sessionId, out var pawns))
         {
@@ -144,6 +215,7 @@ public static class FactionCreator
             Name = name,
             hidden = true
         };
+
         faction.ideos = new FactionIdeosTracker(faction);
 
         if (!ModsConfig.IdeologyActive || Find.IdeoManager.classicMode || chooseIdeoInfo.SelectedIdeo == null)

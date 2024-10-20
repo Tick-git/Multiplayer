@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Multiplayer.API;
@@ -8,13 +8,14 @@ using Multiplayer.Common;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using Verse;
 
 namespace Multiplayer.Client;
 
 public static class FactionSidebar
 {
-    private static ScenarioDef chosenScenario = ScenarioDefOf.Crashlanded; // null means current game's scenario
+    private static ScenarioDef chosenScenario = ScenarioDefOf.Crashlanded;
     private static string newFactionName;
     private static Vector2 scroll;
 
@@ -31,16 +32,22 @@ public static class FactionSidebar
         using (MpStyle.Set(GameFont.Medium))
             Label("Create faction");
 
+        Layouter.Rect(0, 2);
+
         DrawFactionCreator();
 
-        Layouter.Rect(0, 20);
+        Layouter.Rect(0, 12);
 
         using (MpStyle.Set(Color.gray))
-            Widgets.DrawLineHorizontal(Layouter.LastRect().x, Layouter.LastRect().center.y, rect.width);
+            Widgets.DrawLineHorizontal(Layouter.LastRect().x, Layouter.LastRect().yMax, rect.width);
+
+        Layouter.Rect(0, 12);
 
         using (MpStyle.Set(TextAnchor.MiddleLeft))
         using (MpStyle.Set(GameFont.Medium))
             Label("Join faction");
+
+        Layouter.Rect(0, 7);
 
         DrawFactionChooser();
 
@@ -50,26 +57,24 @@ public static class FactionSidebar
 
     private static void DrawFactionCreator()
     {
-        Layouter.BeginHorizontal();
-        // Label($"Scenario: {chosenScenario?.label ?? Find.Scenario.name}");
-        //
-        // if (Mouse.IsOver(Layouter.LastRect()))
-        //     Widgets.DrawAltRect(Layouter.LastRect());
-        //
-        // if (Widgets.ButtonInvisible(Layouter.LastRect()))
-        //     OpenScenarioChooser();
+        DrawScenarioChooser();
 
-        Layouter.EndHorizontal();
+        Layouter.Rect(0, 2);
 
-        newFactionName = Widgets.TextField(Layouter.Rect(150, 24), newFactionName);
+        newFactionName = Widgets.TextField(Layouter.Rect(130, 24), newFactionName);
 
-        if (Button("Settle new faction", 130))
+        Layouter.Rect(0, 7);
+
+        if (Button("Settle new faction", 130, 30))
         {
             var tileError = new StringBuilder();
 
-            // todo check faction name not exists
             if (newFactionName.NullOrEmpty())
                 Messages.Message("The faction name can't be empty.", MessageTypeDefOf.RejectInput, historical: false);
+            else if (Find.FactionManager.AllFactions.Any(f => f.Name == newFactionName))
+            {
+                Messages.Message("The faction name is already taken", MessageTypeDefOf.RejectInput, historical: false);
+            }
             else if (Event.current.button == 1)
             {
                 Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>()
@@ -85,7 +90,7 @@ public static class FactionSidebar
                 Messages.Message(tileError.ToString(), MessageTypeDefOf.RejectInput, historical: false);
             else
             {
-                PreparePawns();
+                PreparePawnsForCharacterCreationPage();
 
                 var pages = new List<Page>();
                 Page_ChooseIdeo_Multifaction chooseIdeoPage = null;
@@ -114,6 +119,25 @@ public static class FactionSidebar
         }
     }
 
+    private static void DrawScenarioChooser()
+    {
+        // Scenario chooser is disabled if Royalty, Ideology or Anomaly is active - because not tested
+        if (ModsConfig.RoyaltyActive || ModsConfig.IdeologyActive || ModsConfig.AnomalyActive)
+        {
+            chosenScenario = ScenarioDefOf.Crashlanded;
+            Label($"Choosing starting scenario is only possible with Core or Biotech");
+            return;
+        }
+
+        Label($"Scenario: {chosenScenario?.label ?? Find.Scenario.name}");
+
+        if (Mouse.IsOver(Layouter.LastRect()))
+            Widgets.DrawAltRect(Layouter.LastRect());
+
+        if (Widgets.ButtonInvisible(Layouter.LastRect()))
+            OpenScenarioChooser();
+    }
+
     private static void OpenScenarioChooser()
     {
         Find.WindowStack.Add(new FloatMenu(
@@ -125,31 +149,31 @@ public static class FactionSidebar
                 {
                     return new FloatMenuOption(s?.label ?? Find.Scenario.name, () =>
                     {
-                        chosenScenario = s;
+                        chosenScenario = s;                        
                     });
                 }).
                 ToList()));
     }
 
-    private static void PreparePawns()
+    private static void PreparePawnsForCharacterCreationPage()
     {
         var scenario = chosenScenario?.scenario ?? Current.Game.Scenario;
         var prevState = Current.programStateInt;
 
-        Current.programStateInt = ProgramState.Entry; // Set ProgramState.Entry so that InInterface is false
-
+        Current.programStateInt = ProgramState.Entry; // Set ProgramState.Entry so that InInterface is false     
+        Current.Game.Scenario = scenario;
         Current.Game.InitData = new GameInitData
         {
-            startingPawnCount = 3,
-            startingPawnKind = scenario.playerFaction.factionDef.basicMemberKind,
+            startedFromEntry = true,
+            playerFaction = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(scenario.playerFaction.factionDef)),
             gameToLoad = "dummy" // Prevent special calculation path in GenTicks.TicksAbs
         };
 
+        ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig = GetStartingPawnsConfigForScenario(scenario);
+
         try
-        {
-            // Create starting pawns
-            new ScenPart_ConfigPage_ConfigureStartingPawns { pawnCount = Current.Game.InitData.startingPawnCount }
-                .GenerateStartingPawns();
+        { 
+            startingPawnsConfig.PostIdeoChosen();
         }
         finally
         {
@@ -157,20 +181,40 @@ public static class FactionSidebar
         }
     }
 
+    // MOVE TO UTIL class OR STH (if present)
+    public static ScenPart_ConfigPage_ConfigureStartingPawnsBase GetStartingPawnsConfigForScenario(Scenario scenario)
+    {
+        ScenPart_ConfigPage_ConfigureStartingPawnsBase x = null;
+
+        foreach (ScenPart part in scenario.AllParts)
+        {
+            MpLog.Log(part.GetType().ToString());
+
+            if (part is ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig)
+            {
+                x = startingPawnsConfig;
+            }
+        }
+
+        return x;
+    }
+
     private static void DoCreateFaction(ChooseIdeoInfo chooseIdeoInfo, bool generateMap)
     {
         int playerId = Multiplayer.session.playerId;
         var prevState = Current.programStateInt;
+        var startingPawnsConfig = GetStartingPawnsConfigForScenario(chosenScenario.scenario);
+
+        Current.Game.InitData.playerFaction = null;
         Current.programStateInt = ProgramState.Playing; // This is to force a sync
 
         try
         {
             if (Current.Game.InitData?.startingAndOptionalPawns is { } pawns)
-                foreach (var p in pawns)
-                    FactionCreator.SendPawn(
-                        playerId,
-                        p
-                    );
+                for (int i = 0; i < startingPawnsConfig.TotalPawnCount; i++)
+                {
+                    FactionCreator.SendPawn(playerId, pawns[i]);
+                }
 
             FactionCreator.CreateFaction(
                 playerId,
@@ -191,7 +235,7 @@ public static class FactionSidebar
     {
         int i = 0;
 
-        foreach (var playerFaction in Find.FactionManager.AllFactions.Where(f => f.def == FactionDefOf.PlayerColony))
+        foreach (var playerFaction in Find.FactionManager.AllFactions.Where(f => f.def == FactionDefOf.PlayerColony || f.def == FactionDefOf.PlayerTribe))
         {
             if (playerFaction.Name == "Spectator") continue;
 
