@@ -136,6 +136,9 @@ public static class FactionCreator
         Current.Game.Scenario = scenario;
         generatingMap = true;
 
+        var prevTile = Find.GameInfo.startingTile;
+        Find.GameInfo.startingTile = tile; // change for all non locals
+
         try
         {
             Map map = GetOrGenerateMapUtility.GetOrGenerateMap(
@@ -144,7 +147,6 @@ public static class FactionCreator
                 null
             );
 
-            GetOrGenerateMapUtility.UnfogMapFromEdge(map);
             SetAllItemsOnMapForbidden(map);
 
             return map;
@@ -153,6 +155,7 @@ public static class FactionCreator
         {
             generatingMap = false;
             Current.Game.Scenario = prevScenario;
+            Find.GameInfo.startingTile = prevTile;
         }
     }
 
