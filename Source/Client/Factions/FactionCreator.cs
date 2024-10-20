@@ -29,7 +29,7 @@ public static class FactionCreator
 
     [SyncMethod]
     public static void CreateFaction(
-        int playerId, string factionName, int tile,
+        int playerId, string factionName, int startingTile,
         [CanBeNull] ScenarioDef scenarioDef, ChooseIdeoInfo chooseIdeoInfo,
         bool generateMap
     )
@@ -39,8 +39,9 @@ public static class FactionCreator
         LongEventHandler.QueueLongEvent(() =>
         {
             var scenario = scenarioDef?.scenario ?? Current.Game.Scenario;
+            Map newMap = null;
 
-            PrepareGameInitData(playerId, scenario);
+            PrepareGameInitData(playerId, scenario, self);
 
             var newFaction = NewFactionWithIdeo(
                 factionName,
@@ -48,15 +49,13 @@ public static class FactionCreator
                 chooseIdeoInfo
             );
 
-            Map newMap = null;
-
             if (generateMap)
                 using (MpScope.PushFaction(newFaction))
                 {
                     foreach (var pawn in StartingPawnUtility.StartingAndOptionalPawns)
                         pawn.ideo.SetIdeo(newFaction.ideos.PrimaryIdeo);
 
-                    newMap = GenerateNewMap(tile, scenario);
+                    newMap = GenerateNewMap(startingTile, scenario);
                 }
 
             foreach (Map map in Find.Maps)
@@ -105,7 +104,6 @@ public static class FactionCreator
             typeof(ScenPart_PlayerFaction),
             typeof(ScenPart_GameStartDialog),
             typeof(ScenPart_StartingResearch),
-            typeof(ScenPart_CreateIncident), // nicht sicher
         };
 
         foreach (ScenPart part in scenario.AllParts)
@@ -125,19 +123,20 @@ public static class FactionCreator
 
         // ScenPart_PlayerFaction --> PreMapGenerate 
 
-        var mapParent = (Settlement) WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
-        mapParent.Tile = tile;
-        mapParent.SetFaction(Faction.OfPlayer);
-        Find.WorldObjects.Add(mapParent);
+        var settlement = (Settlement) WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
+        settlement.Tile = tile;
+        settlement.SetFaction(Faction.OfPlayer);
+        Find.WorldObjects.Add(settlement);
 
         // ^^^^ Duplicate Code here ^^^^
 
         var prevScenario = Find.Scenario;
-        Current.Game.Scenario = scenario;
-        generatingMap = true;
+        var prevStartingTile = Find.GameInfo.startingTile;
 
-        var prevTile = Find.GameInfo.startingTile;
+        Current.Game.Scenario = scenario;
         Find.GameInfo.startingTile = tile; // change for all non locals
+
+        generatingMap = true;
 
         try
         {
@@ -155,7 +154,7 @@ public static class FactionCreator
         {
             generatingMap = false;
             Current.Game.Scenario = prevScenario;
-            Find.GameInfo.startingTile = prevTile;
+            Find.GameInfo.startingTile = prevStartingTile;
         }
     }
 
@@ -187,13 +186,13 @@ public static class FactionCreator
         ResearchUtility.ApplyPlayerStartingResearch();
     }
 
-    private static void PrepareGameInitData(int sessionId, Scenario scenario)
+    private static void PrepareGameInitData(int sessionId, Scenario scenario, bool self)
     {
-        if(Current.Game.InitData == null)
+        if(!self)
         {
             Current.Game.InitData = new GameInitData()
             {
-                startingPawnCount = FactionSidebar.GetStartingPawnsConfigForScenario(scenario).TotalPawnCount,
+                startingPawnCount = GetStartingPawnsConfigForScenario(scenario).TotalPawnCount,
                 gameToLoad = "dummy"
             };
         }
@@ -265,5 +264,18 @@ public static class FactionCreator
         new Page_ChooseIdeoPreset { selectedStyles = chooseIdeoInfo.SelectedStyles }.ApplySelectedStylesToIdeo(ideo);
 
         return ideo;
+    }
+
+    public static ScenPart_ConfigPage_ConfigureStartingPawnsBase GetStartingPawnsConfigForScenario(Scenario scenario)
+    {
+        foreach (ScenPart part in scenario.AllParts)
+        {
+            if (part is ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig)
+            {
+                return startingPawnsConfig;
+            }
+        }
+
+        return null;
     }
 }

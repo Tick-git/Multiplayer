@@ -119,6 +119,7 @@ public static class FactionSidebar
         }
     }
 
+    
     private static void DrawScenarioChooser()
     {
         // Scenario chooser is disabled if Royalty, Ideology or Anomaly is active - because not tested
@@ -142,12 +143,10 @@ public static class FactionSidebar
     {
         Find.WindowStack.Add(new FloatMenu(
             DefDatabase<ScenarioDef>.AllDefs.
-                Where(def => def.scenario.GetHashCode() != Find.Scenario.GetHashCode()).
                 Except(ScenarioDefOf.Tutorial).
-                Prepend(null).
                 Select(s =>
                 {
-                    return new FloatMenuOption(s?.label ?? Find.Scenario.name, () =>
+                    return new FloatMenuOption(s.label, () =>
                     {
                         chosenScenario = s;                        
                     });
@@ -162,6 +161,7 @@ public static class FactionSidebar
 
         Current.programStateInt = ProgramState.Entry; // Set ProgramState.Entry so that InInterface is false     
         Current.Game.Scenario = scenario;
+
         Current.Game.InitData = new GameInitData
         {
             startedFromEntry = true,
@@ -169,11 +169,9 @@ public static class FactionSidebar
             gameToLoad = "dummy" // Prevent special calculation path in GenTicks.TicksAbs
         };
 
-        ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig = GetStartingPawnsConfigForScenario(scenario);
-
         try
         { 
-            startingPawnsConfig.PostIdeoChosen();
+            scenario.PostIdeoChosen();
         }
         finally
         {
@@ -182,28 +180,12 @@ public static class FactionSidebar
     }
 
     // MOVE TO UTIL class OR STH (if present)
-    public static ScenPart_ConfigPage_ConfigureStartingPawnsBase GetStartingPawnsConfigForScenario(Scenario scenario)
-    {
-        ScenPart_ConfigPage_ConfigureStartingPawnsBase x = null;
-
-        foreach (ScenPart part in scenario.AllParts)
-        {
-            MpLog.Log(part.GetType().ToString());
-
-            if (part is ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig)
-            {
-                x = startingPawnsConfig;
-            }
-        }
-
-        return x;
-    }
+    
 
     private static void DoCreateFaction(ChooseIdeoInfo chooseIdeoInfo, bool generateMap)
     {
         int playerId = Multiplayer.session.playerId;
         var prevState = Current.programStateInt;
-        var startingPawnsConfig = GetStartingPawnsConfigForScenario(chosenScenario.scenario);
 
         Current.Game.InitData.playerFaction = null;
         Current.programStateInt = ProgramState.Playing; // This is to force a sync
@@ -211,7 +193,7 @@ public static class FactionSidebar
         try
         {
             if (Current.Game.InitData?.startingAndOptionalPawns is { } pawns)
-                for (int i = 0; i < startingPawnsConfig.TotalPawnCount; i++)
+                for (int i = 0; i < Find.GameInitData.startingPawnCount; i++)
                 {
                     FactionCreator.SendPawn(playerId, pawns[i]);
                 }
