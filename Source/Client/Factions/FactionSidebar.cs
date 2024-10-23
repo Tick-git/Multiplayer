@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Multiplayer.API;
 using Multiplayer.Client.Factions;
 using Multiplayer.Client.Util;
 using Multiplayer.Common;
@@ -18,35 +17,20 @@ public static class FactionSidebar
     private static string newFactionName;
     private static Vector2 scroll;
 
-    public static void DrawFactionSidebar(Rect rect)
+    private const string preventSpecialCalculationPathInGenTicksTicksAbs = "dummy";
+
+    public static void DrawFactionSidebar(Rect factionBarRect)
     {
         using var _ = MpStyle.Set(GameFont.Small);
 
-        if (!Layouter.BeginArea(rect))
+        if (!Layouter.BeginArea(factionBarRect))
             return;
 
         Layouter.BeginScroll(ref scroll, spacing: 0f);
 
-        using (MpStyle.Set(TextAnchor.MiddleLeft))
-        using (MpStyle.Set(GameFont.Medium))
-            Label("Create faction");
-
-        Layouter.Rect(0, 2);
-
         DrawFactionCreator();
 
-        Layouter.Rect(0, 12);
-
-        using (MpStyle.Set(Color.gray))
-            Widgets.DrawLineHorizontal(Layouter.LastRect().x, Layouter.LastRect().yMax, rect.width);
-
-        Layouter.Rect(0, 12);
-
-        using (MpStyle.Set(TextAnchor.MiddleLeft))
-        using (MpStyle.Set(GameFont.Medium))
-            Label("Join faction");
-
-        Layouter.Rect(0, 7);
+        DrawDividingLine(factionBarRect);   
 
         DrawFactionChooser();
 
@@ -56,68 +40,158 @@ public static class FactionSidebar
 
     private static void DrawFactionCreator()
     {
+        DrawFactionCreatorHeadline();
+
         DrawScenarioChooser();
 
+        DrawFactionNameTextfield();
+
+        if (Button("Settle new faction", 130, 30) && FactionCreationCanBeStarted())
+        {
+            var gameConfigurationPages = new List<Page>();
+            Page_ChooseIdeo_Multifaction chooseIdeoPage = null;
+            Page_ConfigureStartingPawns pawnConfigPage = null;
+
+            BeginScenarioConfiguration(chosenScenario.scenario);
+
+            chooseIdeoPage = GetIdeologyConfigurationPage();
+            pawnConfigPage = new Page_ConfigureStartingPawns()
+            {
+                nextAct = () => DoCreateFaction(Page_ChooseIdeo_Multifaction.GetChooseIdeoInfoForIdeoPage(chooseIdeoPage), true)
+            };
+
+            if (chooseIdeoPage != null)
+            {
+                gameConfigurationPages.Add(chooseIdeoPage);
+            }
+
+            gameConfigurationPages.Add(pawnConfigPage);
+
+            var page = PageUtility.StitchedPages(gameConfigurationPages);
+            Find.WindowStack.Add(page);
+        }
+    }
+
+    private static void DrawFactionChooser()
+    {
+        using (MpStyle.Set(TextAnchor.MiddleLeft))
+        using (MpStyle.Set(GameFont.Medium))
+            Label("Join faction");
+
+        Layouter.Rect(0, 7);
+
+        int i = 0;
+
+        foreach (var playerFaction in Find.FactionManager.AllFactions.Where(f => f.def == FactionDefOf.PlayerColony || f.def == FactionDefOf.PlayerTribe))
+        {
+            if (playerFaction.Name == "Spectator") continue;
+
+            Layouter.BeginHorizontal();
+            if (i % 2 == 0)
+                Widgets.DrawAltRect(Layouter.GroupRect());
+
+            using (MpStyle.Set(TextAnchor.MiddleCenter))
+                Label(playerFaction.Name, true);
+
+            Layouter.FlexibleWidth();
+            if (Button("Join", 70))
+            {
+                var factionHome = Find.Maps.FirstOrDefault(m => m.ParentFaction == playerFaction);
+                if (factionHome != null)
+                    Current.Game.CurrentMap = factionHome;
+
+                // todo setting faction of self
+                Multiplayer.Client.Send(
+                    Packets.Client_SetFaction,
+                    Multiplayer.session.playerId,
+                    playerFaction.loadID
+                );
+            }
+            Layouter.EndHorizontal();
+            i++;
+        }
+    }
+
+    private static void DrawFactionCreatorHeadline()
+    {
+        using (MpStyle.Set(TextAnchor.MiddleLeft))
+        using (MpStyle.Set(GameFont.Medium))
+            Label("Create faction");
+
+        Layouter.Rect(0, 2);
+    }
+
+    private static void DrawFactionNameTextfield()
+    {
         Layouter.Rect(0, 2);
 
         newFactionName = Widgets.TextField(Layouter.Rect(130, 24), newFactionName);
 
         Layouter.Rect(0, 7);
+    }
 
-        if (Button("Settle new faction", 130, 30))
+    private static bool FactionCreationCanBeStarted()
+    {
+        var tileError = new StringBuilder();
+
+        if (newFactionName.NullOrEmpty())
         {
-            var tileError = new StringBuilder();
-
-            if (newFactionName.NullOrEmpty())
-                Messages.Message("The faction name can't be empty.", MessageTypeDefOf.RejectInput, historical: false);
-            else if (Find.FactionManager.AllFactions.Any(f => f.Name == newFactionName))
-            {
-                Messages.Message("The faction name is already taken", MessageTypeDefOf.RejectInput, historical: false);
-            }
-            else if (Event.current.button == 1)
-            {
-                Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>()
+            Messages.Message("The faction name can't be empty.", MessageTypeDefOf.RejectInput, historical: false);
+            return false;
+        }
+        else if (Find.FactionManager.AllFactions.Any(f => f.Name == newFactionName))
+        {
+            Messages.Message("The faction name is already taken", MessageTypeDefOf.RejectInput, historical: false);
+            return false;
+        }
+        else if (Event.current.button == 1)
+        {
+            Find.WindowStack.Add(new FloatMenu(new List<FloatMenuOption>()
                 {
                     new(
                         "Dev: create faction (no base)", () => DoCreateFaction(new ChooseIdeoInfo(null, null, null), false)
                     )
                 }));
-            }
-            else if (Find.WorldInterface.SelectedTile < 0)
-                Messages.Message("MustSelectStartingSite".TranslateWithBackup("MustSelectLandingSite"), MessageTypeDefOf.RejectInput, historical: false);
-            else if (!TileFinder.IsValidTileForNewSettlement(Find.WorldInterface.SelectedTile, tileError))
-                Messages.Message(tileError.ToString(), MessageTypeDefOf.RejectInput, historical: false);
-            else
-            {
-                PreparePawnsForCharacterCreationPage();
 
-                var pages = new List<Page>();
-                Page_ChooseIdeo_Multifaction chooseIdeoPage = null;
-
-                if (ModsConfig.IdeologyActive && !Find.IdeoManager.classicMode)
-                    pages.Add(chooseIdeoPage = new Page_ChooseIdeo_Multifaction());
-
-                pages.Add(new Page_ConfigureStartingPawns
-                {
-                    nextAct = () =>
-                    {
-                        DoCreateFaction(
-                            new ChooseIdeoInfo(
-                                chooseIdeoPage?.pageChooseIdeo.selectedIdeo,
-                                chooseIdeoPage?.pageChooseIdeo.selectedStructure,
-                                chooseIdeoPage?.pageChooseIdeo.selectedStyles
-                            ),
-                            true
-                        );
-                    }
-                });
-
-                var page = PageUtility.StitchedPages(pages);
-                Find.WindowStack.Add(page);
-            }
+            return false;
         }
+        else if (Find.WorldInterface.SelectedTile < 0)
+        {
+            Messages.Message("MustSelectStartingSite".TranslateWithBackup("MustSelectLandingSite"), MessageTypeDefOf.RejectInput, historical: false);
+            return false;
+        }
+        else if (!TileFinder.IsValidTileForNewSettlement(Find.WorldInterface.SelectedTile, tileError))
+        {
+            Messages.Message(tileError.ToString(), MessageTypeDefOf.RejectInput, historical: false);
+            return false;
+        }
+
+        return true;
     }
-   
+
+    private static Page_ChooseIdeo_Multifaction GetIdeologyConfigurationPage()
+    {
+        Page_ChooseIdeo_Multifaction chooseIdeoPage = null;
+
+        if (ModsConfig.IdeologyActive && !Find.IdeoManager.classicMode)
+            chooseIdeoPage = new Page_ChooseIdeo_Multifaction();
+        else if (!ModsConfig.IdeologyActive)
+            Page_ChooseIdeo_Multifaction.PostIdeoChoosen();
+
+        return chooseIdeoPage;
+    }
+
+    private static void BeginScenarioConfiguration(Scenario scenario)
+    {
+        Current.Game.Scenario = scenario;
+
+        Current.Game.InitData = new GameInitData
+        {
+            startedFromEntry = true,
+            gameToLoad = preventSpecialCalculationPathInGenTicksTicksAbs
+        };
+    }
+
     private static void DrawScenarioChooser()
     {
         // Scenario chooser is disabled if Royalty or Anomaly is active - because not tested
@@ -150,33 +224,6 @@ public static class FactionSidebar
                     });
                 }).
                 ToList()));
-    }
-
-    private static void PreparePawnsForCharacterCreationPage()
-    {
-        var scenario = chosenScenario?.scenario ?? Current.Game.Scenario;
-        var prevState = Current.programStateInt;
-
-        Current.programStateInt = ProgramState.Entry; // Set ProgramState.Entry so that InInterface is false     
-        Current.Game.Scenario = scenario;
-
-        Current.Game.InitData = new GameInitData
-        {
-            startedFromEntry = true,
-            gameToLoad = "dummy" // Prevent special calculation path in GenTicks.TicksAbs
-        };
-
-        Current.Game.InitData.playerFaction = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(scenario.playerFaction.factionDef));
-
-        try
-        {
-            // TODO: its before ideo is chosen atm
-            scenario.PostIdeoChosen();
-        }
-        finally
-        {
-            Current.programStateInt = prevState;
-        }
     }
 
     private static void DoCreateFaction(ChooseIdeoInfo chooseIdeoInfo, bool generateMap)
@@ -227,38 +274,14 @@ public static class FactionSidebar
         return startingPossessions;
     }
 
-    private static void DrawFactionChooser()
+    private static void DrawDividingLine(Rect factionBarRect)
     {
-        int i = 0;
+        Layouter.Rect(0, 12);
 
-        foreach (var playerFaction in Find.FactionManager.AllFactions.Where(f => f.def == FactionDefOf.PlayerColony || f.def == FactionDefOf.PlayerTribe))
-        {
-            if (playerFaction.Name == "Spectator") continue;
+        using (MpStyle.Set(Color.gray))
+            Widgets.DrawLineHorizontal(Layouter.LastRect().x, Layouter.LastRect().yMax, factionBarRect.width);
 
-            Layouter.BeginHorizontal();
-            if (i % 2 == 0)
-                Widgets.DrawAltRect(Layouter.GroupRect());
-
-            using (MpStyle.Set(TextAnchor.MiddleCenter))
-                Label(playerFaction.Name, true);
-
-            Layouter.FlexibleWidth();
-            if (Button("Join", 70))
-            {
-                var factionHome = Find.Maps.FirstOrDefault(m => m.ParentFaction == playerFaction);
-                if (factionHome != null)
-                    Current.Game.CurrentMap = factionHome;
-
-                // todo setting faction of self
-                Multiplayer.Client.Send(
-                    Packets.Client_SetFaction,
-                    Multiplayer.session.playerId,
-                    playerFaction.loadID
-                );
-            }
-            Layouter.EndHorizontal();
-            i++;
-        }
+        Layouter.Rect(0, 12);
     }
 
     public static void Label(string text, bool inheritHeight = false)
@@ -272,8 +295,4 @@ public static class FactionSidebar
     }
 }
 
-public record ChooseIdeoInfo(
-    IdeoPresetDef SelectedIdeo,
-    MemeDef SelectedStructure,
-    List<StyleCategoryDef> SelectedStyles
-) : ISyncSimple;
+
