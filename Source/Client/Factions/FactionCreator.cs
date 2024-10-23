@@ -31,7 +31,7 @@ public static class FactionCreator
     public static void CreateFaction(
         int playerId, string factionName, int startingTile,
         [CanBeNull] ScenarioDef scenarioDef, ChooseIdeoInfo chooseIdeoInfo,
-        bool generateMap
+        bool generateMap, List<ThingDefCount> startingPossessions
     )
     {
         var self = TickPatch.currentExecutingCmdIssuedBySelf;
@@ -41,7 +41,7 @@ public static class FactionCreator
             var scenario = scenarioDef?.scenario ?? Current.Game.Scenario;
             Map newMap = null;
 
-            PrepareGameInitData(playerId, scenario, self);
+            PrepareGameInitData(playerId, scenario, self, startingPossessions);
 
             var newFaction = NewFactionWithIdeo(
                 factionName,
@@ -96,9 +96,10 @@ public static class FactionCreator
         ScenPart_Rule.cs
 
         Would like to call PostGameStart on all implementations (scenario.PostGameStart) -
-        but dont know if it breaks with dlcs other than biotech
+        but dont know if it breaks with dlcs other than biotech - especially while only called
+        on self
         **/
-        
+
         HashSet<Type> types = new HashSet<Type>
         {
             typeof(ScenPart_PlayerFaction),
@@ -158,7 +159,7 @@ public static class FactionCreator
         }
     }
 
-    // Temporary workaround for the fact that the map is generated with all items allowed
+    // (Temporary) workaround for the fact that the map is generated with all scattered items allowed
     private static void SetAllItemsOnMapForbidden(Map map)
     {
         foreach (IntVec3 cell in map.AllCells)
@@ -177,32 +178,39 @@ public static class FactionCreator
 
     private static void InitNewGame()
     {
-        // ScenPart_PlayerPawnsArriveMethod --> PostMapGenerate
-
         PawnUtility.GiveAllStartingPlayerPawnsThought(ThoughtDefOf.NewColonyOptimism);
-
-        // ^^^^
 
         ResearchUtility.ApplyPlayerStartingResearch();
     }
 
-    private static void PrepareGameInitData(int sessionId, Scenario scenario, bool self)
+    private static void PrepareGameInitData(int sessionId, Scenario scenario, bool self, List<ThingDefCount> startingPossessions)
     {
         if(!self)
         {
             Current.Game.InitData = new GameInitData()
             {
-                startingPawnCount = GetStartingPawnsConfigForScenario(scenario).TotalPawnCount,
+                startingPawnCount = GetStartingPawnsCountForScenario(scenario),
                 gameToLoad = "dummy"
             };
         }
 
         if (pawnStore.TryGetValue(sessionId, out var pawns))
         {
-            Current.Game.InitData.startingAndOptionalPawns = pawns;
-            Current.Game.InitData.startingPossessions = new Dictionary<Pawn, List<ThingDefCount>>();
-            foreach (var p in pawns)
-                Current.Game.InitData.startingPossessions[p] = new List<ThingDefCount>();
+            Pawn firstPawn = pawns.First();
+
+            GameInitData gameInitData = Current.Game.InitData;
+            gameInitData.startingAndOptionalPawns = pawns;
+            gameInitData.startingPossessions = new Dictionary<Pawn, List<ThingDefCount>>();
+
+            foreach(var pawn in pawns)
+            {
+                gameInitData.startingPossessions[pawn] = new List<ThingDefCount>();
+            }
+
+            foreach (var possesion in startingPossessions)
+            {
+                gameInitData.startingPossessions[firstPawn].Add(possesion);
+            }
 
             pawnStore.Remove(sessionId);
         }
@@ -266,16 +274,18 @@ public static class FactionCreator
         return ideo;
     }
 
-    public static ScenPart_ConfigPage_ConfigureStartingPawnsBase GetStartingPawnsConfigForScenario(Scenario scenario)
+    public static int GetStartingPawnsCountForScenario(Scenario scenario)
     {
         foreach (ScenPart part in scenario.AllParts)
         {
             if (part is ScenPart_ConfigPage_ConfigureStartingPawnsBase startingPawnsConfig)
             {
-                return startingPawnsConfig;
+                return startingPawnsConfig.TotalPawnCount;
             }
         }
 
-        return null;
+        MpLog.Error("No starting pawns config found to access startingPawnCount");
+
+        return 0;
     }
 }

@@ -8,7 +8,6 @@ using Multiplayer.Common;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 using Verse;
 
 namespace Multiplayer.Client;
@@ -118,15 +117,14 @@ public static class FactionSidebar
             }
         }
     }
-
-    
+   
     private static void DrawScenarioChooser()
     {
-        // Scenario chooser is disabled if Royalty, Ideology or Anomaly is active - because not tested
-        if (ModsConfig.RoyaltyActive || ModsConfig.IdeologyActive || ModsConfig.AnomalyActive)
+        // Scenario chooser is disabled if Royalty or Anomaly is active - because not tested
+        if (ModsConfig.RoyaltyActive || ModsConfig.AnomalyActive)
         {
             chosenScenario = ScenarioDefOf.Crashlanded;
-            Label($"Choosing starting scenario is only possible with Core or Biotech");
+            Label($"Choosing starting scenario is only possible with Core, Biotech and Ideology");
             return;
         }
 
@@ -165,12 +163,14 @@ public static class FactionSidebar
         Current.Game.InitData = new GameInitData
         {
             startedFromEntry = true,
-            playerFaction = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(scenario.playerFaction.factionDef)),
             gameToLoad = "dummy" // Prevent special calculation path in GenTicks.TicksAbs
         };
 
+        Current.Game.InitData.playerFaction = FactionGenerator.NewGeneratedFaction(new FactionGeneratorParms(scenario.playerFaction.factionDef));
+
         try
-        { 
+        {
+            // TODO: its before ideo is chosen atm
             scenario.PostIdeoChosen();
         }
         finally
@@ -178,9 +178,6 @@ public static class FactionSidebar
             Current.programStateInt = prevState;
         }
     }
-
-    // MOVE TO UTIL class OR STH (if present)
-    
 
     private static void DoCreateFaction(ChooseIdeoInfo chooseIdeoInfo, bool generateMap)
     {
@@ -190,12 +187,15 @@ public static class FactionSidebar
         Current.Game.InitData.playerFaction = null;
         Current.programStateInt = ProgramState.Playing; // This is to force a sync
 
+        List<Pawn> startingPawns = new List<Pawn>();
+
         try
         {
             if (Current.Game.InitData?.startingAndOptionalPawns is { } pawns)
                 for (int i = 0; i < Find.GameInitData.startingPawnCount; i++)
                 {
                     FactionCreator.SendPawn(playerId, pawns[i]);
+                    startingPawns.Add(pawns[i]);
                 }
 
             FactionCreator.CreateFaction(
@@ -204,13 +204,27 @@ public static class FactionSidebar
                 Find.WorldInterface.SelectedTile,
                 chosenScenario,
                 chooseIdeoInfo,
-                generateMap
+                generateMap,
+                GetStartingPossessions(startingPawns)
             );
         }
         finally
         {
             Current.programStateInt = prevState;
         }
+    }
+
+    private static List<ThingDefCount> GetStartingPossessions(List<Pawn> startingPawns)
+    {
+        Dictionary<Pawn, List<ThingDefCount>> allPossessions = Find.GameInitData.startingPossessions;
+        List<ThingDefCount> startingPossessions = new List<ThingDefCount>();
+
+        foreach(Pawn pawn in startingPawns)
+        {
+            startingPossessions.AddRange(allPossessions[pawn]);
+        }
+
+        return startingPossessions;
     }
 
     private static void DrawFactionChooser()
