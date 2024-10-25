@@ -65,8 +65,11 @@ namespace Multiplayer.Client
 
         public int TickableId => map.uniqueID;
 
+        public int GameStartAbsTick { get => gameStartAbsTick; }
+
         public Map map;
         public int mapTicks;
+        private int gameStartAbsTick;
         private TimeSpeed timeSpeedInt;
         public bool forcedNormalSpeed;
         public int eventCount;
@@ -87,6 +90,12 @@ namespace Multiplayer.Client
         public AsyncTimeComp(Map map)
         {
             this.map = map;
+        }
+
+        public AsyncTimeComp(Map map, int gameStartAbsTick)
+        {
+            this.map = map;
+            this.gameStartAbsTick = gameStartAbsTick;
         }
 
         public void Tick()
@@ -197,6 +206,9 @@ namespace Multiplayer.Client
         {
             Scribe_Values.Look(ref mapTicks, "mapTicks");
             Scribe_Values.Look(ref timeSpeedInt, "timeSpeed");
+
+            // TODO: In old game files this is 0 - in this case: i need to get this value to loaded TickManaer.gameStartAbsTick for all maps
+            Scribe_Values.Look(ref gameStartAbsTick, "gameStartAbsTick");
 
             Scribe_Deep.Look(ref storyteller, "storyteller");
 

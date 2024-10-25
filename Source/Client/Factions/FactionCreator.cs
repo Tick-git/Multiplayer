@@ -31,7 +31,7 @@ public static class FactionCreator
     public static void CreateFaction(
         int playerId, string factionName, int startingTile,
         [CanBeNull] ScenarioDef scenarioDef, ChooseIdeoInfo chooseIdeoInfo,
-        bool generateMap, List<ThingDefCount> startingPossessions
+        bool generateMap, List<ThingDefCount> startingPossessions, bool startMapTimeIsZero
     )
     {
         var self = TickPatch.currentExecutingCmdIssuedBySelf;
@@ -40,7 +40,7 @@ public static class FactionCreator
         {
             var scenario = scenarioDef?.scenario ?? Current.Game.Scenario;
             Map newMap = null;
-
+                   
             PrepareGameInitData(playerId, scenario, self, startingPossessions);
 
             var newFaction = NewFactionWithIdeo(
@@ -55,7 +55,7 @@ public static class FactionCreator
                     foreach (var pawn in StartingPawnUtility.StartingAndOptionalPawns)
                         pawn.ideo.SetIdeo(newFaction.ideos.PrimaryIdeo);
 
-                    newMap = GenerateNewMap(startingTile, scenario);
+                    newMap = GenerateNewMap(startingTile, scenario, startMapTimeIsZero);
                 }
 
             foreach (Map map in Find.Maps)
@@ -116,7 +116,7 @@ public static class FactionCreator
         }
     }
 
-    private static Map GenerateNewMap(int tile, Scenario scenario)
+    private static Map GenerateNewMap(int tile, Scenario scenario, bool setupMapTimeFromTickZero)
     {
         // This has to be null, otherwise, during map generation, Faction.OfPlayer returns it which breaks FactionContext
         Find.GameInitData.playerFaction = null;
@@ -129,13 +129,16 @@ public static class FactionCreator
         settlement.SetFaction(Faction.OfPlayer);
         Find.WorldObjects.Add(settlement);
 
-        // ^^^^ Duplicate Code here ^^^^
+        // ^^^^ Duplicate Code here ^^^^ ScenPart_PlayerFaction --> PreMapGenerate 
 
         var prevScenario = Find.Scenario;
         var prevStartingTile = Find.GameInfo.startingTile;
 
         Current.Game.Scenario = scenario;
-        Find.GameInfo.startingTile = tile; // change for all non locals
+        Find.GameInfo.startingTile = tile;
+        Find.GameInitData.startingTile = tile;
+
+        MapSetup.setupNextMapFromTickZero = setupMapTimeFromTickZero;
 
         generatingMap = true;
 
@@ -156,10 +159,12 @@ public static class FactionCreator
             generatingMap = false;
             Current.Game.Scenario = prevScenario;
             Find.GameInfo.startingTile = prevStartingTile;
+            Find.GameInitData.startingTile = prevStartingTile;
         }
     }
 
     // (Temporary) workaround for the fact that the map is generated with all scattered items allowed
+    // Need to look for code which disables all items on the map for other players than self
     private static void SetAllItemsOnMapForbidden(Map map)
     {
         foreach (IntVec3 cell in map.AllCells)
