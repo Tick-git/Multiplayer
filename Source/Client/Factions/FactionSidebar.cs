@@ -26,7 +26,7 @@ public static class FactionSidebar
 
         Layouter.BeginScroll(ref scroll, spacing: 0f);
 
-        DrawFactionCreator();
+        DrawFactionCreator(factionBarRect);
 
         DrawDividingLine(factionBarRect);   
 
@@ -36,11 +36,13 @@ public static class FactionSidebar
         Layouter.EndArea();
     }
 
-    private static void DrawFactionCreator()
+    private static void DrawFactionCreator(Rect factionBarRect)
     {
         DrawFactionCreatorHeadline();
 
         DrawScenarioChooser();
+
+        DrawMapTimeResetCheckbox(factionBarRect);
 
         DrawFactionNameTextfield();
 
@@ -48,6 +50,24 @@ public static class FactionSidebar
         {
             OpenConfigurationPages();
         }
+    }
+
+    private static void DrawMapTimeResetCheckbox(Rect factionBarRect)
+    {
+        Layouter.Rect(0, 2);
+
+        Rect rect = Layouter.Rect(factionBarRect.x, 20);
+        bool asyncTimeDisabled = !Multiplayer.GameComp.asyncTime;
+
+        if (asyncTimeDisabled)
+        {
+            // TODO: Tooltip does not show up
+            TooltipHandler.TipRegion(rect, "Only active with async setting active in host menu");
+        }
+
+        MpUI.CheckboxLabeled(rect, $"Reset Time:  ", ref MapSetup.setupNextMapFromTickZero, order: ElementOrder.Left, disabled: asyncTimeDisabled);
+
+        Layouter.Rect(0, 5);
     }
 
     private static void OpenConfigurationPages()
@@ -99,6 +119,7 @@ public static class FactionSidebar
             factionCreationData.chooseIdeoInfo = chooseIdeoInfo;
             factionCreationData.generateMap = generateMap;
             factionCreationData.startingPossessions = GetStartingPossessions(startingPawns);
+            factionCreationData.setupNextMapFromTickZero = MapSetup.setupNextMapFromTickZero;            
 
             FactionCreator.CreateFaction(playerId, factionCreationData);
         }

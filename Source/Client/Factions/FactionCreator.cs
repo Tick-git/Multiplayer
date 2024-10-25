@@ -52,7 +52,7 @@ public static class FactionCreator
                     foreach (var pawn in StartingPawnUtility.StartingAndOptionalPawns)
                         pawn.ideo.SetIdeo(newFaction.ideos.PrimaryIdeo);
 
-                    newMap = GenerateNewMap(creationData.startingTile, scenario);
+                    newMap = GenerateNewMap(creationData.startingTile, scenario, creationData.setupNextMapFromTickZero);
                 }
 
             foreach (Map map in Find.Maps)
@@ -113,7 +113,7 @@ public static class FactionCreator
         }
     }
 
-    private static Map GenerateNewMap(int tile, Scenario scenario)
+    private static Map GenerateNewMap(int tile, Scenario scenario, bool setupNextMapFromTickZero)
     {
         // This has to be null, otherwise, during map generation, Faction.OfPlayer returns it which breaks FactionContext
         Find.GameInitData.playerFaction = null;
@@ -132,7 +132,10 @@ public static class FactionCreator
         var prevStartingTile = Find.GameInfo.startingTile;
 
         Current.Game.Scenario = scenario;
-        Find.GameInfo.startingTile = tile; // change for all non locals
+        Find.GameInfo.startingTile = tile;
+        Find.GameInitData.startingTile = tile;
+
+        MapSetup.setupNextMapFromTickZero = setupNextMapFromTickZero;
 
         generatingMap = true;
 
@@ -153,10 +156,12 @@ public static class FactionCreator
             generatingMap = false;
             Current.Game.Scenario = prevScenario;
             Find.GameInfo.startingTile = prevStartingTile;
+            Find.GameInitData.startingTile = prevStartingTile;
         }
     }
 
-    // (Temporary) workaround for the fact that the map is generated with all scattered items allowed
+    // TODO: Find better Solution
+    // Workaround for the fact that the map is generated with all scattered items allowed
     private static void SetAllItemsOnMapForbidden(Map map)
     {
         foreach (Thing thing in map.listerThings.AllThings)
@@ -286,5 +291,6 @@ public record FactionCreationData : ISyncSimple
     public ChooseIdeoInfo chooseIdeoInfo;
     public bool generateMap;
     public List<ThingDefCount> startingPossessions;
+    public bool setupNextMapFromTickZero;
 }
 
