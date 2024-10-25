@@ -65,11 +65,11 @@ namespace Multiplayer.Client
 
         public int TickableId => map.uniqueID;
 
-        public int GameStartAbsTick { get => gameStartAbsTick; }
+        public int GameStartAbsTick { get => gameStartAbsTickMap; }
 
         public Map map;
         public int mapTicks;
-        private int gameStartAbsTick;
+        private int gameStartAbsTickMap;
         private TimeSpeed timeSpeedInt;
         public bool forcedNormalSpeed;
         public int eventCount;
@@ -92,10 +92,10 @@ namespace Multiplayer.Client
             this.map = map;
         }
 
-        public AsyncTimeComp(Map map, int gameStartAbsTick)
+        public AsyncTimeComp(Map map, int gameStartAbsTick = 0)
         {
             this.map = map;
-            this.gameStartAbsTick = gameStartAbsTick;
+            this.gameStartAbsTickMap = gameStartAbsTick;
         }
 
         public void Tick()
@@ -207,8 +207,17 @@ namespace Multiplayer.Client
             Scribe_Values.Look(ref mapTicks, "mapTicks");
             Scribe_Values.Look(ref timeSpeedInt, "timeSpeed");
 
-            // TODO: In old game files this is 0 - in this case: i need to get this value to loaded TickManaer.gameStartAbsTick for all maps
-            Scribe_Values.Look(ref gameStartAbsTick, "gameStartAbsTick");
+
+            Scribe_Values.Look(ref gameStartAbsTickMap, "gameStartAbsTickMap");
+
+            // TODO: Finding potential better solution for:
+            // gameStartAbsTickMap is not set in old savefiles -> Therefore this value should be set to Find.TickManager.gameStartAbsTick for all maps
+            // Accessing Find.TickManager.gameStartAbsTick here feels unclean despite it being initialized at this point
+
+            if (Scribe.mode == LoadSaveMode.LoadingVars && gameStartAbsTickMap == 0)
+            {
+                gameStartAbsTickMap = Find.TickManager.gameStartAbsTick;
+            }
 
             Scribe_Deep.Look(ref storyteller, "storyteller");
 
@@ -451,5 +460,4 @@ namespace Multiplayer.Client
         MultiCell,
         Thing
     }
-
 }

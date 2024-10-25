@@ -163,8 +163,8 @@ public static class FactionCreator
         }
     }
 
-    // (Temporary) workaround for the fact that the map is generated with all scattered items allowed
-    // Need to look for code which disables all items on the map for other players than self
+    // TODO: Find better Solution
+    // Workaround for the fact that the map is generated with all scattered items allowed
     private static void SetAllItemsOnMapForbidden(Map map)
     {
         foreach (IntVec3 cell in map.AllCells)
