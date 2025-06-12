@@ -9,7 +9,7 @@ namespace Multiplayer.Client;
 [HarmonyPatch(typeof(MapGenerator), nameof(MapGenerator.GenerateMap))]
 public static class MapSetup
 {
-    public static bool setupNextMapFromTickZero = false;
+    public static bool SetupNextMapFromTickZero = false;
 
     static void Prefix(ref Action<Map> extraInitBeforeContentGen)
     {
@@ -53,7 +53,7 @@ public static class MapSetup
         bool startingMapTimeFromBeginning =
             Multiplayer.GameComp.multifaction &&
             Multiplayer.GameComp.asyncTime &&
-            setupNextMapFromTickZero;
+            SetupNextMapFromTickZero;
 
         if (usingMapTimeFromSingleplayer)
         {
@@ -84,7 +84,7 @@ public static class MapSetup
         asyncTimeCompForMap.storyteller = new Storyteller(Find.Storyteller.def, Find.Storyteller.difficultyDef, Find.Storyteller.difficulty);
         asyncTimeCompForMap.storyWatcher = new StoryWatcher();
 
-        setupNextMapFromTickZero = false;
+        SetupNextMapFromTickZero = false;
 
         return asyncTimeCompForMap;
     }

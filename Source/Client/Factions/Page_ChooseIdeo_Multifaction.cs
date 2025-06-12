@@ -60,21 +60,14 @@ public class Page_ChooseIdeo_Multifaction : Page
         return base.CanDoNext();
     }   
 
-    public static ChooseIdeoInfo GetChooseIdeoInfoForIdeoPage(Page_ChooseIdeo_Multifaction page)
+    public IdeologyData GetIdeologyData()
     {
-        if (page == null)
-        {
-            return new ChooseIdeoInfo(null, null, null);
-        }
-
-        Page_ChooseIdeoPreset chooseIdeoPreset = page.pageChooseIdeo;
-
-        return new ChooseIdeoInfo(chooseIdeoPreset.selectedIdeo, chooseIdeoPreset.selectedStructure, chooseIdeoPreset.selectedStyles);
+        return new IdeologyData(pageChooseIdeo.selectedIdeo, pageChooseIdeo.selectedStructure, pageChooseIdeo.selectedStyles);
     }
 }
 
-public record ChooseIdeoInfo(
-    IdeoPresetDef SelectedIdeo,
-    MemeDef SelectedStructure,
-    List<StyleCategoryDef> SelectedStyles
+public record IdeologyData(
+    IdeoPresetDef SelectedIdeo = null,
+    MemeDef SelectedStructure = null,
+    List<StyleCategoryDef> SelectedStyles = null
 ) : ISyncSimple;

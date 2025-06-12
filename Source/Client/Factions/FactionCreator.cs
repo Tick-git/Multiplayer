@@ -135,7 +135,7 @@ public static class FactionCreator
         Find.GameInfo.startingTile = tile;
         Find.GameInitData.startingTile = tile;
 
-        MapSetup.setupNextMapFromTickZero = setupNextMapFromTickZero;
+        MapSetup.SetupNextMapFromTickZero = setupNextMapFromTickZero;
 
         generatingMap = true;
 
@@ -210,7 +210,7 @@ public static class FactionCreator
         }
     }
 
-    private static Faction NewFactionWithIdeo(string name, FactionDef def, ChooseIdeoInfo chooseIdeoInfo)
+    private static Faction NewFactionWithIdeo(string name, FactionDef def, IdeologyData chooseIdeoInfo)
     {
         var faction = new Faction
         {
@@ -253,7 +253,7 @@ public static class FactionCreator
         return faction;
     }
 
-    private static Ideo GenerateIdeo(ChooseIdeoInfo chooseIdeoInfo)
+    private static Ideo GenerateIdeo(IdeologyData chooseIdeoInfo)
     {
         List<MemeDef> list = chooseIdeoInfo.SelectedIdeo.memes.ToList();
 
@@ -288,7 +288,7 @@ public record FactionCreationData : ISyncSimple
     public string factionName;
     public int startingTile;
     [CanBeNull] public ScenarioDef scenarioDef;
-    public ChooseIdeoInfo chooseIdeoInfo;
+    public IdeologyData chooseIdeoInfo;
     public bool generateMap;
     public List<ThingDefCount> startingPossessions;
     public bool setupNextMapFromTickZero;
