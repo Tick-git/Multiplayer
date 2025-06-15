@@ -77,7 +77,7 @@ public static class FactionCreator
                     Packets.Client_SetFaction,
                     Multiplayer.session.playerId,
                     newFaction.loadID
-                );                
+                );
             }
         }, "GeneratingMap", doAsynchronously: true, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
     }
@@ -121,7 +121,7 @@ public static class FactionCreator
 
         // ScenPart_PlayerFaction --> PreMapGenerate 
 
-        var settlement = (Settlement) WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
+        var settlement = (Settlement)WorldObjectMaker.MakeWorldObject(WorldObjectDefOf.Settlement);
         settlement.Tile = tile;
         settlement.SetFaction(Faction.OfPlayer);
         Find.WorldObjects.Add(settlement);
@@ -147,7 +147,7 @@ public static class FactionCreator
                 null
             );
 
-            SetAllItemsOnMapForbidden(map);
+            SetAllThingWithCompsOnMapForbidden(map);
 
             return map;
         }
@@ -160,13 +160,15 @@ public static class FactionCreator
         }
     }
 
-    // TODO: Find better Solution
-    // Workaround for the fact that the map is generated with all scattered items allowed
-    private static void SetAllItemsOnMapForbidden(Map map)
+    // TODO: Remove this Workaround (see Issue #535)
+    private static void SetAllThingWithCompsOnMapForbidden(Map map)
     {
         foreach (Thing thing in map.listerThings.AllThings)
         {
-            thing.SetForbidden(true, false);
+            if (thing is ThingWithComps)
+            {
+                thing.SetForbidden(true, false);
+            }
         }
     }
 
@@ -179,7 +181,7 @@ public static class FactionCreator
 
     private static void PrepareGameInitData(int sessionId, Scenario scenario, bool self, List<ThingDefCount> startingPossessions)
     {
-        if(!self)
+        if (!self)
         {
             Current.Game.InitData = new GameInitData()
             {
@@ -196,7 +198,7 @@ public static class FactionCreator
             gameInitData.startingAndOptionalPawns = pawns;
             gameInitData.startingPossessions = new Dictionary<Pawn, List<ThingDefCount>>();
 
-            foreach(var pawn in pawns)
+            foreach (var pawn in pawns)
             {
                 gameInitData.startingPossessions[pawn] = new List<ThingDefCount>();
             }
