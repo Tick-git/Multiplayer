@@ -181,7 +181,8 @@ public static class FactionSidebar
         float scrollSpacing = 4;
         var allPlayerFactions = Find.FactionManager.AllFactions.
             Where(f => f.def == FactionDefOf.PlayerColony || f.def == FactionDefOf.PlayerTribe).
-            Where(f => f.name != "Spectator");
+            Where(f => f.name != "Spectator").
+            Where(f => !f.temporary);
 
         Layouter.BeginVertical(2);
 
