@@ -54,11 +54,8 @@ namespace Multiplayer.Client.Factions
         private void GeneratePawnsForConfigurePage()
         {
             var prevProgramState = Current.programStateInt;
+            SetEntryProgramStateForCorrectPawnCreation();
 
-            // Old Comment: Set ProgramState.Entry so that InInterface is false
-            // TODO: Why is this necessary?
-            // TODO: feel like there is a better way to do this
-            Current.programStateInt = ProgramState.Entry;
             Current.Game.InitData.playerFaction = _temporaryFactionForPawnCreation;
 
             try
@@ -69,6 +66,16 @@ namespace Multiplayer.Client.Factions
             {       
                 Current.programStateInt = prevProgramState;
             }
+        }
+
+        private static void SetEntryProgramStateForCorrectPawnCreation()
+        {
+            // Set ProgramState.Entry to ensure InInterface is false.
+            // (#508 Tick-git)  InInterface seems unrelated to PawnCreation to me,
+            //                  but it's necessary because it makes Faction.OfPlayer return
+            //                  the temporary generated faction — which is required for proper apparel generation.
+
+            Current.programStateInt = ProgramState.Entry;
         }
 
         private void GeneratingPawns()
