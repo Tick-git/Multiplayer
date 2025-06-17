@@ -65,7 +65,18 @@ namespace Multiplayer.Client
 
         public int TickableId => map.uniqueID;
 
-        public int GameStartAbsTick { get => gameStartAbsTickMap; }
+        public int GameStartAbsTick
+        {
+            get
+            {
+                if (gameStartAbsTickMap == 0)
+                {
+                    gameStartAbsTickMap = Find.TickManager?.gameStartAbsTick ?? 0;
+                }
+
+                return gameStartAbsTickMap;
+            }
+        }
 
         public Map map;
         public int mapTicks;
@@ -90,6 +101,7 @@ namespace Multiplayer.Client
         public AsyncTimeComp(Map map)
         {
             this.map = map;
+            this.gameStartAbsTickMap = 0;
         }
 
         public AsyncTimeComp(Map map, int gameStartAbsTick = 0)
@@ -207,17 +219,7 @@ namespace Multiplayer.Client
             Scribe_Values.Look(ref mapTicks, "mapTicks");
             Scribe_Values.Look(ref timeSpeedInt, "timeSpeed");
 
-
             Scribe_Values.Look(ref gameStartAbsTickMap, "gameStartAbsTickMap");
-
-            // TODO: Finding potential better solution for:
-            // gameStartAbsTickMap is not set in old savefiles -> Therefore this value should be set to Find.TickManager.gameStartAbsTick for all maps
-            // Accessing Find.TickManager.gameStartAbsTick here feels unclean despite it being initialized at this point
-
-            if (Scribe.mode == LoadSaveMode.LoadingVars && gameStartAbsTickMap == 0)
-            {
-                gameStartAbsTickMap = Find.TickManager.gameStartAbsTick;
-            }
 
             Scribe_Deep.Look(ref storyteller, "storyteller");
 
