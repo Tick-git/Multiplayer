@@ -75,6 +75,7 @@ namespace Multiplayer.Client
             SyncMethod.Register(typeof(ReadingPolicyDatabase), nameof(ReadingPolicyDatabase.TryDelete)).CancelIfAnyArgNull();
 
             SyncMethod.Register(typeof(Building_Bed), nameof(Building_Bed.Medical));
+            SyncMethod.Register(typeof(CompPilotConsole), nameof(CompPilotConsole.StartChoosingDestination));
 
             {
                 var types = typeof(CompAssignableToPawn).AllSubtypesAndSelf().ToArray();
