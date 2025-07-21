@@ -16,7 +16,9 @@ namespace Multiplayer.Client.Patches
             if (Multiplayer.Client == null)
                 return true;
 
-            __result = VTRSync.GetSynchronizedUpdateRate(thing);
+            // TODO: Put this back to the original value
+            // Probably need to sync up all the animations before doing this
+            __result = 1;// VTRSync.GetSynchronizedUpdateRate(thing);
             return false;
         }
     }
@@ -70,29 +72,30 @@ namespace Multiplayer.Client.Patches
 
             try
             {
-                int previousMap = Find.CurrentMap?.uniqueID ?? -1;
+                // Use the old map from the game's map list, if available
+                int previousMap = -1;
+                if (Find.Maps != null && Find.Maps.Count > 0)
+                {
+                    var currentMap = Find.CurrentMap;
+                    previousMap = currentMap != null ? currentMap.uniqueID : -1;
+                }
                 int newMap = value?.uniqueID ?? -1;
                 int currentTick = Find.TickManager?.TicksGame ?? 0;
 
-                // If no change in map, do nothing
                 if (previousMap == newMap)
                     return;
 
-                // Prevent duplicate commands for the same transition, but allow retry after a tick
                 if (VTRSync.lastMovedToMap == newMap && currentTick == VTRSync.lastSentTick)
                     return;
 
-                // Send map change command to server
-                // Send as global command since it affects multiple maps
+                MpLog.Debug($"VTR MapSwitchPatch: Switching from map {previousMap} to {newMap} at tick {currentTick}");
                 Multiplayer.Client.SendCommand(CommandType.PlayerCount, ScheduledCommand.Global, ByteWriter.GetBytes(previousMap, newMap));
-
-                // Track this command to prevent duplicates
                 VTRSync.lastMovedToMap = newMap;
                 VTRSync.lastSentTick = currentTick;
             }
             catch (Exception ex)
             {
-                MpLog.Error($"VTR MapSwitchPatch error: {ex.Message}");
+                MpLog.Error($"VTR MapSwitchPatch error: {ex}");
             }
         }
     }
