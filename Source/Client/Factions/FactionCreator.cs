@@ -32,14 +32,14 @@ public static class FactionCreator
     [SyncMethod]
     public static void CreateFaction(int playerId, FactionCreationData creationData)
     {
-        var self = TickPatch.currentExecutingCmdIssuedBySelf;
+        var executingOnlyOnIssuer = TickPatch.currentExecutingCmdIssuedBySelf;
 
         LongEventHandler.QueueLongEvent(() =>
         {
             var scenario = creationData.scenarioDef?.scenario ?? Current.Game.Scenario;
             Map newMap = null;
 
-            PrepareGameInitData(playerId, scenario, self, creationData.startingPossessions);
+            PrepareGameInitData(playerId, scenario, executingOnlyOnIssuer, creationData.startingPossessions);
 
             var newFaction = NewFactionWithIdeo(
                 creationData.factionName,
@@ -62,17 +62,17 @@ public static class FactionCreator
                     map.attackTargetsCache.Notify_FactionHostilityChanged(f, newFaction);
 
             using (MpScope.PushFaction(newFaction))
-                InitNewGame();
+                InitNewGame(scenario);
 
-            if (self)
+            if (executingOnlyOnIssuer)
             {
+                ClearPortraitCacheFromPawnConfigPage();
+
                 Current.Game.CurrentMap = newMap;
 
                 Multiplayer.game.ChangeRealPlayerFaction(newFaction);
 
-                CameraJumper.TryJump(MapGenerator.playerStartSpotInt, newMap);
-
-                PostGameStart(scenario);
+                InitLocalVisuals(scenario, newMap);
 
                 // todo setting faction of self
                 Multiplayer.Client.Send(
@@ -84,35 +84,20 @@ public static class FactionCreator
         }, "GeneratingMap", doAsynchronously: true, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
     }
 
-    private static void PostGameStart(Scenario scenario)
+    private static void ClearPortraitCacheFromPawnConfigPage()
     {
-        /**
-        ScenPart_StartingResearch.cs				
-        ScenPart_AutoActivateMonolith.cs		
-        ScenPart_CreateIncident.cs		
-        ScenPart_GameStartDialog.cs			
-        ScenPart_PlayerFaction.cs		
-        ScenPart_Rule.cs
+        PortraitsCache.Clear();
+    }
 
-        Would like to call PostGameStart on all implementations (scenario.PostGameStart) -
-        but dont know if it breaks with dlcs other than biotech - especially while only called
-        on self
-        **/
+    private static void InitLocalVisuals(Scenario scenario, Map generatedMap)
+    {
+        // TODO #587: There may be other logical ScenParts (e.g., ScenPart_StartingResearch) that
+        // need to be executed by all players in the game.
+        var onlyVisualScenParts = new HashSet<Type>() { typeof(ScenPart_GameStartDialog) };
 
-        HashSet<Type> types = new HashSet<Type>
-        {
-            typeof(ScenPart_PlayerFaction),
-            typeof(ScenPart_GameStartDialog),
-            typeof(ScenPart_StartingResearch),
-        };
+        PostGameStart(scenario, onlyVisualScenParts);
 
-        foreach (ScenPart part in scenario.AllParts)
-        {
-            if (types.Contains(part.GetType()))
-            {
-                part.PostGameStart();
-            }
-        }
+        CameraJumper.TryJump(MapGenerator.playerStartSpotInt, generatedMap);
     }
 
     private static Map GenerateNewMap(PlanetTile tile, Scenario scenario, bool setupNextMapFromTickZero)
@@ -148,8 +133,6 @@ public static class FactionCreator
                 null
             );
 
-            SetAllThingWithCompsOnMapForbidden(map);
-
             return map;
         }
         finally
@@ -161,27 +144,31 @@ public static class FactionCreator
         }
     }
 
-    // TODO: Remove this Workaround (see Issue #535)
-    private static void SetAllThingWithCompsOnMapForbidden(Map map)
-    {
-        foreach (Thing thing in map.listerThings.AllThings)
-        {
-            if (thing is ThingWithComps)
-            {
-                thing.SetForbidden(true, false);
-            }
-        }
-    }
-
-    private static void InitNewGame()
+    private static void InitNewGame(Scenario scenario)
     {
         PawnUtility.GiveAllStartingPlayerPawnsThought(ThoughtDefOf.NewColonyOptimism);
 
         ResearchUtility.ApplyPlayerStartingResearch();
+
+        // TODO #587: There may be other only visual ScenParts (e.g., ScenPart_GameStartDialog) that only need to
+        // be executed by the local client (the issuer/creator of the new faction).
+        PostGameStart(scenario, new HashSet<Type>() { typeof(ScenPart_StartingResearch) });
+
         // Initialize anomaly. Since the Anomaly comp is currently shared by all players,
         // we need to ensure that any new factions have access to anomaly research if
         // anomaly content was started.
         Find.ResearchManager.Notify_MonolithLevelChanged(Find.Anomaly.Level);
+    }
+
+    private static void PostGameStart(Scenario scenario, IEnumerable<Type> scenPartTypesToInvoke)
+    {
+        foreach (ScenPart part in scenario.AllParts)
+        {
+            if (scenPartTypesToInvoke.Contains(part.GetType()))
+            {
+                part.PostGameStart();
+            }
+        }
     }
 
     private static void PrepareGameInitData(int sessionId, Scenario scenario, bool self, List<ThingDefCount> startingPossessions)
