@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using HarmonyLib;
@@ -189,6 +189,7 @@ public class AsyncWorldTimeComp : IExposable, ITickable
             if (cmdType == CommandType.Sync)
             {
                 var handler = SyncUtil.HandleCmd(data);
+                Log.Message($"{handler.ToString()} WORLD CMD");
                 data.Log.current.text = handler.ToString();
             }
 

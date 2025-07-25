@@ -204,7 +204,7 @@ namespace Multiplayer.Client
                 .SetContext(SyncContext.MapSelected)
                 .CancelIfAnyArgNull();
 
-            SyncMethod.Register(typeof(Precept_Ritual), nameof(Precept_Ritual.ShowRitualBeginWindow));
+           SyncMethod.Register(typeof(Precept_Ritual), nameof(Precept_Ritual.ShowRitualBeginWindow));
 
             // Inventory (medicine) stock up
             SyncMethod.Register(typeof(Pawn_InventoryStockTracker), nameof(Pawn_InventoryStockTracker.SetCountForGroup));

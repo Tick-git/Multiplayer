@@ -390,6 +390,7 @@ namespace Multiplayer.Client
                 factionCreationDto.setupNextMapFromTickZero = setupNextMapFromTickZero;
 
                 FactionCreator.CreateFaction(playerId, factionCreationDto);
+                Log.Message("PRESSED");
             }
             finally
             {

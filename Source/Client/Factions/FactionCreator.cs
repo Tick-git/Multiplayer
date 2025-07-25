@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using JetBrains.Annotations;
 using Multiplayer.API;
 using Multiplayer.Client.Util;
@@ -32,56 +33,60 @@ public static class FactionCreator
     [SyncMethod]
     public static void CreateFaction(int playerId, FactionCreationData creationData)
     {
+        Log.Message("=========== TEST");
+
         var executingOnlyOnIssuer = TickPatch.currentExecutingCmdIssuedBySelf;
 
-        LongEventHandler.QueueLongEvent(() =>
-        {
-            var scenario = creationData.scenarioDef?.scenario ?? Current.Game.Scenario;
-            Map newMap = null;
+        //LongEventHandler.QueueLongEvent(() =>
+        //{
+        //    var scenario = creationData.scenarioDef?.scenario ?? Current.Game.Scenario;
+        //    Map newMap = null;
 
-            PrepareGameInitData(playerId, scenario, executingOnlyOnIssuer, creationData.startingPossessions);
+        //    PrepareGameInitData(playerId, scenario, executingOnlyOnIssuer, creationData.startingPossessions);
 
-            var newFaction = NewFactionWithIdeo(
-                creationData.factionName,
-                creationData.factionColor,
-                scenario.playerFaction.factionDef,
-                creationData.chooseIdeoInfo
-            );
+        //    var newFaction = NewFactionWithIdeo(
+        //        creationData.factionName,
+        //        creationData.factionColor,
+        //        scenario.playerFaction.factionDef,
+        //        creationData.chooseIdeoInfo
+        //    );
 
-            if (creationData.generateMap)
-                using (MpScope.PushFaction(newFaction))
-                {
-                    foreach (var pawn in StartingPawnUtility.StartingAndOptionalPawns)
-                        pawn.ideo.SetIdeo(newFaction.ideos.PrimaryIdeo);
+        //    if (creationData.generateMap)
+        //        using (MpScope.PushFaction(newFaction))
+        //        {
+        //            foreach (var pawn in StartingPawnUtility.StartingAndOptionalPawns)
+        //                pawn.ideo.SetIdeo(newFaction.ideos.PrimaryIdeo);
 
-                    newMap = GenerateNewMap(creationData.startingTile, scenario, creationData.setupNextMapFromTickZero);
-                }
+        //            newMap = GenerateNewMap(creationData.startingTile, scenario, creationData.setupNextMapFromTickZero);
+        //        }
 
-            foreach (Map map in Find.Maps)
-                foreach (var f in Find.FactionManager.AllFactions.Where(f => f.IsPlayer))
-                    map.attackTargetsCache.Notify_FactionHostilityChanged(f, newFaction);
+        //    foreach (Map map in Find.Maps)
+        //        foreach (var f in Find.FactionManager.AllFactions.Where(f => f.IsPlayer))
+        //            map.attackTargetsCache.Notify_FactionHostilityChanged(f, newFaction);
 
-            using (MpScope.PushFaction(newFaction))
-                InitNewGame(scenario);
+        //    using (MpScope.PushFaction(newFaction))
+        //        InitNewGame(scenario);
 
-            if (executingOnlyOnIssuer)
-            {
-                ClearPortraitCacheFromPawnConfigPage();
+        //    if (executingOnlyOnIssuer)
+        //    {
+        //        ClearPortraitCacheFromPawnConfigPage();
 
-                Current.Game.CurrentMap = newMap;
+        //        Current.Game.CurrentMap = newMap;
 
-                Multiplayer.game.ChangeRealPlayerFaction(newFaction);
+        //        Multiplayer.game.ChangeRealPlayerFaction(newFaction);
 
-                InitLocalVisuals(scenario, newMap);
+        //        InitLocalVisuals(scenario, newMap);
 
-                // todo setting faction of self
-                Multiplayer.Client.Send(
-                    Packets.Client_SetFaction,
-                    Multiplayer.session.playerId,
-                    newFaction.loadID
-                );
-            }
-        }, "GeneratingMap", doAsynchronously: true, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
+        //        // todo setting faction of self
+        //        Multiplayer.Client.Send(
+        //            Packets.Client_SetFaction,
+        //            Multiplayer.session.playerId,
+        //            newFaction.loadID
+        //        );
+        //    }
+
+            
+        //}, "GeneratingMap", doAsynchronously: true, GameAndMapInitExceptionHandlers.ErrorWhileGeneratingMap);
     }
 
     private static void ClearPortraitCacheFromPawnConfigPage()

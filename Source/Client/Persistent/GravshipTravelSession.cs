@@ -56,7 +56,7 @@ public class GravshipTravelSession : ExposableSession
 
     public override void PostRemoveSession()
     {
-        TickManager_PlayerCanControl_Patch.ResetLandingMessageFlag();
+        // TickManager_PlayerCanControl_Patch.ResetLandingMessageFlag();
     }
 }
 

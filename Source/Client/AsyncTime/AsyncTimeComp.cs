@@ -11,6 +11,7 @@ using Multiplayer.Client.Patches;
 using Multiplayer.Client.Saving;
 using Multiplayer.Client.Util;
 using System.Linq;
+using UnityEngine;
 
 namespace Multiplayer.Client
 {
@@ -116,6 +117,9 @@ namespace Multiplayer.Client
         {
             tickingMap = map;
             PreContext();
+
+            if(Input.GetKeyDown(KeyCode.LeftAlt))
+                SyncTestClass.SyncFromTestClass("CALL FROM MAP TICK");
 
             //SimpleProfiler.Start();
 
@@ -281,6 +285,7 @@ namespace Multiplayer.Client
                 if (cmdType == CommandType.Sync)
                 {
                     var handler = SyncUtil.HandleCmd(data);
+                    Log.Message($"{handler.ToString()} MAP CMD");
                     data.Log.current.text = handler.ToString();
                 }
 
