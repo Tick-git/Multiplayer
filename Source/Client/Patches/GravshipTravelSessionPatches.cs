@@ -30,10 +30,10 @@ namespace Multiplayer.Client.Patches
             if (GravshipTravelSessionUtils.GetSession(engine.Map.Tile) != null)
             {
                 // If a session already exists, we don't need to show the dialog again
-                MpLog.Debug($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchConfirmation: Session already exists for tile {engine.Map.Tile}, skipping dialog.");
+                MpLog.Log($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchConfirmation: Session already exists for tile {engine.Map.Tile}, skipping dialog.");
                 return true;
             }
-            MpLog.Debug($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchConfirmation: Creating gravship travel session for tile {engine.Map.Tile}.");
+            MpLog.Log($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchConfirmation: Creating gravship travel session for tile {engine.Map.Tile}.");
             GravshipTravelSessionUtils.CreateGravshipTravelSession(engine.Map);
 
             launchAction = () =>
@@ -91,7 +91,7 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncGravshipDialogCancel()
         {
-            MpLog.Debug($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchCancel: Cancelling gravship launch.");
+            MpLog.Log($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_GravshipPreLaunchCancel: Cancelling gravship launch.");
             Patch_GravshipPreLaunchConfirmation.CloseGravshipDialog();
         }
     }
@@ -112,7 +112,7 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncGravshipTileConfirm(Building_GravEngine engine, PlanetTile planetTile)
         {
-            MpLog.Debug($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_SettlementProximityGoodwillUtility_CheckConfirmSettle: Confirming settlement for tile {planetTile} with gravship engine {engine.def.defName}.");
+            MpLog.Log($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_SettlementProximityGoodwillUtility_CheckConfirmSettle: Confirming settlement for tile {planetTile} with gravship engine {engine.def.defName}.");
             // Run the same logic as the original confirmation delegate
             WorldComponent_GravshipController.DestroyTreesAroundSubstructure(engine.Map, engine.ValidSubstructure);
             Find.World.renderer.wantedMode = WorldRenderMode.None;
@@ -141,7 +141,7 @@ namespace Multiplayer.Client.Patches
 
             if (allowVanillaBeginTakeoffCutscene)
             {
-                MpLog.Debug($"[MP] Patch_BeginTakeoffCutscene: Allowing vanilla.");
+                MpLog.Log($"[MP] Patch_BeginTakeoffCutscene: Allowing vanilla.");
                 allowVanillaBeginTakeoffCutscene = false;
                 return true;
             }
@@ -157,7 +157,7 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncBeginTakeoffCutscene(WorldComponent_GravshipController controller)
         {
-            MpLog.Debug($"[MP] SyncBeginTakeoffCutscene.");
+            MpLog.Log($"[MP] SyncBeginTakeoffCutscene.");
             GravshipTravelSession session = GravshipTravelSessionUtils.GetSession(controller.takeoffTile);
             if (session == null)
             {
@@ -179,7 +179,7 @@ namespace Multiplayer.Client.Patches
 
         static bool Prefix(WorldComponent_GravshipController __instance)
         {
-            MpLog.Debug($"[MP] Patch_GravshipTakeoffEnded: Takeoff ended for tile {__instance.takeoffTile}.");
+            MpLog.Log($"[MP] Patch_GravshipTakeoffEnded: Takeoff ended for tile {__instance.takeoffTile}.");
             if (Multiplayer.Client == null) return true;
 
             GravshipTravelSession session = GravshipTravelSessionUtils.GetSession(__instance.takeoffTile);
@@ -194,7 +194,7 @@ namespace Multiplayer.Client.Patches
 
             if (allowVanillaTakeoffEnded)
             {
-                MpLog.Debug($"[MP] Patch_GravshipTakeoffEnded: Allowing vanilla TakeoffEnded for tile {__instance.takeoffTile}.");
+                MpLog.Log($"[MP] Patch_GravshipTakeoffEnded: Allowing vanilla TakeoffEnded for tile {__instance.takeoffTile}.");
                 session.takeOffEndedComplete = true;
                 allowVanillaTakeoffEnded = false;
                 return true;
@@ -211,7 +211,7 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncTakeoffEnded(WorldComponent_GravshipController controller)
         {
-            MpLog.Debug($"[MP] SyncTakeoffEnded: Ending takeoff for tile {controller.takeoffTile}.");
+            MpLog.Log($"[MP] SyncTakeoffEnded: Ending takeoff for tile {controller.takeoffTile}.");
             GravshipTravelSession session = GravshipTravelSessionUtils.GetSession(controller.takeoffTile);
             if (session == null)
             {
@@ -249,7 +249,7 @@ namespace Multiplayer.Client.Patches
 
             if (allowVanillaLanding)
             {
-                MpLog.Debug("[MP] Allowing vanilla landing logic to run.");
+                MpLog.Log("[MP] Allowing vanilla landing logic to run.");
                 allowVanillaLanding = false;
                 vanillaLandingCalled = true;
                 return true;
@@ -366,7 +366,7 @@ namespace Multiplayer.Client.Patches
         static bool Prefix()
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug("[MP] GravshipAudio_BeginTakeoff_Patch: Beginning gravship takeoff audio.");
+            MpLog.Log("[MP] GravshipAudio_BeginTakeoff_Patch: Beginning gravship takeoff audio.");
             return true; // Allow vanilla logic to run
         }
     }
@@ -377,7 +377,7 @@ namespace Multiplayer.Client.Patches
     //    static bool Prefix(WorldComponent_GravshipController __instance)
     //    {
     //        if (Multiplayer.Client == null) return true;
-    //        MpLog.Debug("[MP] WorldComponent_GravshipController_DrawGravship_Patch: Drawing gravship.");
+    //        MpLog.Log("[MP] WorldComponent_GravshipController_DrawGravship_Patch: Drawing gravship.");
     //        // Allow vanilla logic to run
     //        return true;
     //    }
@@ -389,7 +389,7 @@ namespace Multiplayer.Client.Patches
         static bool Prefix()
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug("[MP] GravshipRenderer_BeginCutscene_Patch: Beginning gravship cutscene rendering.");
+            MpLog.Log("[MP] GravshipRenderer_BeginCutscene_Patch: Beginning gravship cutscene rendering.");
             return true; // Allow vanilla logic to run
         }
     }
@@ -401,14 +401,14 @@ namespace Multiplayer.Client.Patches
         {
             if (Multiplayer.Client == null) return true;
 
-            MpLog.Debug($"[MP] BiomeWorker_GlacialPlain_Patch: getting noise with seed {Gen.HashCombineInt(Find.World.info.Seed, 44319114)}.");
+            MpLog.Log($"[MP] BiomeWorker_GlacialPlain_Patch: getting noise with seed {Gen.HashCombineInt(Find.World.info.Seed, 44319114)}.");
             return true; // Allow vanilla logic to run
         }
 
         static void Postfix(ref float __result)
         {
             if (Multiplayer.Client == null) return;
-            MpLog.Debug($"[MP] BiomeWorker_GlacialPlain_Patch: returning noise value {__result}.");
+            MpLog.Log($"[MP] BiomeWorker_GlacialPlain_Patch: returning noise value {__result}.");
         }
     }
 
@@ -418,7 +418,7 @@ namespace Multiplayer.Client.Patches
         static void Postfix(MapParent __instance)
         {
             if (Multiplayer.Client == null) return;
-            MpLog.Debug("[MP] MapParent_Abandon_Patch: Abandoning map parent.");
+            MpLog.Log("[MP] MapParent_Abandon_Patch: Abandoning map parent.");
         }
     }
 
@@ -427,7 +427,7 @@ namespace Multiplayer.Client.Patches
     {
         static void Prefix()
         {
-            MpLog.Debug("[MP] LandingOutcomeWorker_GravNausea_ApplyOuytcome_Patch");
+            MpLog.Log("[MP] LandingOutcomeWorker_GravNausea_ApplyOuytcome_Patch");
         }
     }
 
@@ -437,7 +437,7 @@ namespace Multiplayer.Client.Patches
         static bool Prefix()
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug($"[MP] GravshipUtility_ArriveNewMap_Patch: Arriving at new map");
+            MpLog.Log($"[MP] GravshipUtility_ArriveNewMap_Patch: Arriving at new map");
             return true; // Allow vanilla logic to run
         }
     }
@@ -458,7 +458,7 @@ namespace Multiplayer.Client.Patches
         static void Prefix()
         {
             if (Multiplayer.Client == null) return;
-            MpLog.Debug("[MP] WorldComponent_GravshipController_InitiateTakeoff_Patch.");
+            MpLog.Log("[MP] WorldComponent_GravshipController_InitiateTakeoff_Patch.");
         }
     }
 
@@ -468,25 +468,25 @@ namespace Multiplayer.Client.Patches
         static bool Prefix(WorldComponent_GravshipController __instance, ref RimWorld.Capture capture)
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Capturing gravship.");
+            MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Capturing gravship.");
             return true;
 
             //RimWorld.Capture existingCapture = __instance.gravship?.capture;
             //__instance.zoomRange = __instance.GetCutsceneZoomRange(capture);
             //__instance.PanIf(Find.CameraDriver.config.gravshipPanOnCutsceneStart, capture.captureCenter, __instance.zoomRange.min, 1f, delegate
             //{
-            //    MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Starting pan?");
+            //    MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Starting pan?");
             //    Delay.AfterNSeconds(0.5f, delegate
             //    {
-            //        MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: After delay?");
+            //        MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: After delay?");
             //        LongEventHandler.QueueLongEvent(delegate
             //        {
-            //            MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Delegate");
+            //            MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Delegate");
             //            HashSet<IntVec3> validSubstructure = existingCapture.engine.ValidSubstructure;
-            //            MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Before baking");
+            //            MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: Before baking");
             //            LayerSubMesh item = SectionLayer_IndoorMask.BakeGravshipIndoorMesh(__instance.map, validSubstructure, validSubstructure.Count, WorldComponent_GravshipController.IndoorMaskGravship, existingCapture.captureCenter);
             //            List<LayerSubMesh> collection = SectionLayer_GravshipHull.BakeGravshipIndoorMesh(__instance.map, existingCapture.captureBounds, existingCapture.captureCenter);
-            //            MpLog.Debug("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: After baking");
+            //            MpLog.Log("[MP] WorldComponent_GravshipController_OnGravshipCaptureComplete_Patch: After baking");
             //            __instance.gravship = __instance.RemoveGravshipFromMap(existingCapture.engine);
             //            __instance.gravship.capture = existingCapture;
             //            __instance.gravship.bakedIndoorMasks.Clear();
@@ -507,14 +507,14 @@ namespace Multiplayer.Client.Patches
         static bool Prefix()
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug("[MP] SectionLayer_GravshipHull_BakeGravshipIndoorMesh_Patch: Baking gravship hull mesh.");
+            MpLog.Log("[MP] SectionLayer_GravshipHull_BakeGravshipIndoorMesh_Patch: Baking gravship hull mesh.");
             return true; // Allow vanilla logic to run
         }
 
         static void Postfix()
         {
             if (Multiplayer.Client == null) return;
-            MpLog.Debug("[MP] SectionLayer_GravshipHull_BakeGravshipIndoorMesh_Patch: Finished baking gravship hull mesh.");
+            MpLog.Log("[MP] SectionLayer_GravshipHull_BakeGravshipIndoorMesh_Patch: Finished baking gravship hull mesh.");
         }
     }
 
@@ -524,14 +524,14 @@ namespace Multiplayer.Client.Patches
         static bool Prefix()
         {
             if (Multiplayer.Client == null) return true;
-            MpLog.Debug("[MP] SectionLayer_IndoorMask_BakeGravshipIndoorMesh_Patch: Baking gravship indoor mesh.");
+            MpLog.Log("[MP] SectionLayer_IndoorMask_BakeGravshipIndoorMesh_Patch: Baking gravship indoor mesh.");
             return true; // Allow vanilla logic to run
         }
 
         static void Postfix()
         {
             if (Multiplayer.Client == null) return;
-            MpLog.Debug("[MP] SectionLayer_IndoorMask_BakeGravshipIndoorMesh_Patch: Finished baking gravship indoor mesh.");
+            MpLog.Log("[MP] SectionLayer_IndoorMask_BakeGravshipIndoorMesh_Patch: Finished baking gravship indoor mesh.");
         }
     }
 
@@ -552,14 +552,14 @@ namespace Multiplayer.Client.Patches
             if (method == null)
                 throw new Exception("Could not find method <InitiateLanding>g__CaptureAndBeginCutscene|0");
 
-            MpLog.Debug($"[MP] Found method: {method.DeclaringType.FullName}.{method.Name}");
+            MpLog.Log($"[MP] Found method: {method.DeclaringType.FullName}.{method.Name}");
             return method;
         }
 
         static void Prefix(object __instance)
         {
             // You can also inspect captured fields via reflection if needed
-            MpLog.Debug("[MP] Prefix: CaptureAndBeginCutscene (DisplayClass)");
+            MpLog.Log("[MP] Prefix: CaptureAndBeginCutscene (DisplayClass)");
         }
     }
 }
