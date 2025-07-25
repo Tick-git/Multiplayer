@@ -10,15 +10,29 @@ using static Multiplayer.Client.Patches.Helperino;
 
 namespace Multiplayer.Client.Patches
 {
+
+    // THESE ARE WORLD CMDS
     [HarmonyPatch(typeof(Root_Play), nameof(Root_Play.Update))]
     [HarmonyPriority(5)]
     static class UpdateLoop
     {
+        static string str = "CALLED FROM UPDATE LOOP";
+
         static void Prefix()
         {
             if(Input.GetKeyDown(KeyCode.LeftControl))
             {
-                SyncTestClass.SyncFromTestClass("CALLED FROM UPDATE LOOP");
+                SyncTestClass.SyncFromTestClass(str);
+            }
+
+            if(Input.GetKeyDown(KeyCode.X))
+            {
+                Precept_Ritual_ShowRitualBeginWindow_Patch.SyncFromHarmonyTest(str);
+            }
+
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                SyncTestClass.SyncLongEvent(str);
             }
         }
     }
@@ -28,7 +42,18 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncFromTestClass(string str)
         {
-            Log.Message($"[{GetCurrentWorldTick()}] SyncFromTestClass value: {str} called on this client: {IsHost()}");
+            Log.Message($"[{GetCurrentWorldTick()}] SyncFromTestClass value: {str} called on this client: {IsIssuer()}");
+        }
+
+        [SyncMethod]
+        public static void SyncLongEvent(string str)
+        {
+            LongEventHandler.QueueLongEvent(() =>
+            {
+                HostSleepFor(3000);
+                Log.Message(str);
+
+            }, "SyncLongEvent", false, null);
         }
     }
 
@@ -61,6 +86,13 @@ namespace Multiplayer.Client.Patches
                 return false;
             }
 
+            if (Input.GetKey(KeyCode.A))
+            {
+                SyncFromHarmonyTest("SYNC FROM LAUNCH BUTTON");
+                __state = false;
+                return false;
+            }
+
             return true;
         }
 
@@ -72,9 +104,16 @@ namespace Multiplayer.Client.Patches
                 return;
             }
         }
+
+        [SyncMethod]
+        public static void SyncFromHarmonyTest(string str)
+        {
+            Log.Message($"[{GetCurrentWorldTick()}] SyncFromHarmonyTest value: {str} called on this client: {IsIssuer()}");
+        }
     }
 
-    // That is the OK Button in Launchwindow 
+    // That is the OK Button in Launchwindow
+    // THESE IS MAP CMD
     [HarmonyPatch(typeof(RitualSession), nameof(RitualSession.Start))]
     static class Patch_Dialog_BeginRitual_Start
     {
@@ -88,7 +127,13 @@ namespace Multiplayer.Client.Patches
 
             if(Input.GetKey(KeyCode.LeftAlt))
             {
-                SyncTestClass.SyncFromTestClass("SYNC FROM OK BUTTON");
+                SyncTestClass.SyncFromTestClass("SYNC WITH TESTCLASS FROM OK BUTTON");
+                return false;
+            }
+
+            if (Input.GetKey(KeyCode.Q))
+            {
+                SyncTestClass.SyncLongEvent("SYNC LONGEVENT FROM OK BUTTON");
                 return false;
             }
 
@@ -108,7 +153,7 @@ namespace Multiplayer.Client.Patches
 
         public static string GetUsername() => Multiplayer.session.GetPlayerInfo(Multiplayer.session.playerId).Username;
 
-        public static bool HasPressed() => TickPatch.currentExecutingCmdIssuedBySelf;
+        public static bool IsIssuer() => TickPatch.currentExecutingCmdIssuedBySelf;
 
         public static bool IsHost() => Multiplayer.session.playerId == 0;
 
