@@ -28,7 +28,7 @@ public class GravshipTravelSession : ExposableSession
             return;
         }
 
-        MpLog.Debug($"[MP] GravshipTravelSession: Creating session");
+        MpLog.Log($"[MP] GravshipTravelSession: Creating session");
         InitialTile = map.Tile;
         RegisterMap(map);
     }
@@ -38,7 +38,7 @@ public class GravshipTravelSession : ExposableSession
 
     public void RegisterMap(Map map)
     {
-        MpLog.Debug($"[MP] GravshipTravelSession: Registering map");
+        MpLog.Log($"[MP] GravshipTravelSession: Registering map");
         UnregisterMap();
         map.MpComp()?.sessionManager?.AddSession(this);
 
@@ -49,7 +49,7 @@ public class GravshipTravelSession : ExposableSession
     {
         if (map == null) return;
 
-        MpLog.Debug($"[MP] GravshipTravelSession: Unregistering map");
+        MpLog.Log($"[MP] GravshipTravelSession: Unregistering map");
         map.MpComp()?.sessionManager?.RemoveSession(this);
         map = null;
     }
@@ -85,7 +85,7 @@ public static class GravshipTravelSessionUtils
         GravshipTravelSession session = GetSession(tile);
         if (session == null) return;
 
-        MpLog.Debug($"[MP] GravshipTravelSession: Closing session for tile {tile}");
+        MpLog.Log($"[MP] GravshipTravelSession: Closing session for tile {tile}");
         session.UnregisterMap();
         Multiplayer.Client.Multiplayer.WorldComp.sessionManager.RemoveSession(session);
     }

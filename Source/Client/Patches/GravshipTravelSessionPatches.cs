@@ -12,6 +12,9 @@ using Verse.Sound;
 
 namespace Multiplayer.Client.Patches
 {
+
+    #region Dialog start ship
+
     // Prelaunch & confirmation
     [HarmonyPatch(typeof(GravshipUtility), nameof(GravshipUtility.PreLaunchConfirmation))]
     public static class Patch_GravshipPreLaunchConfirmation
@@ -115,6 +118,9 @@ namespace Multiplayer.Client.Patches
             SoundDefOf.Gravship_Launch.PlayOneShotOnCamera();
         }
     }
+
+    #endregion
+
 
     [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.BeginTakeoffCutscene))]
     public static class Patch_BeginTakeoffCutscene
