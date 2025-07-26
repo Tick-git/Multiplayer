@@ -2,6 +2,7 @@ using HarmonyLib;
 using Multiplayer.API;
 using Multiplayer.Client.Persistent;
 using Multiplayer.Client.Util;
+using Multiplayer.Common;
 using RimWorld;
 using RimWorld.Planet;
 using System;
@@ -11,6 +12,7 @@ using System.EnterpriseServices;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using Verse;
@@ -112,6 +114,7 @@ namespace Multiplayer.Client.Patches
         [SyncMethod]
         public static void SyncGravshipTileConfirm(Building_GravEngine engine, PlanetTile planetTile)
         {
+            Multiplayer.Client.Send(Packets.Client_Freeze, new object[] { true });
             MpLog.Debug($"[MP] [{Multiplayer.AsyncWorldTime.worldTicks}] Patch_SettlementProximityGoodwillUtility_CheckConfirmSettle: Confirming settlement for tile {planetTile} with gravship engine {engine.def.defName}.");
             // Run the same logic as the original confirmation delegate
             WorldComponent_GravshipController.DestroyTreesAroundSubstructure(engine.Map, engine.ValidSubstructure);
@@ -119,6 +122,11 @@ namespace Multiplayer.Client.Patches
             engine.ConsumeFuel(planetTile);
             Find.GravshipController.InitiateTakeoff(engine, planetTile);
             SoundDefOf.Gravship_Launch.PlayOneShotOnCamera();
+
+            if(Multiplayer.session.playerId == 0)
+            {
+                Thread.Sleep(5000);
+            }
         }
     }
 
@@ -148,6 +156,7 @@ namespace Multiplayer.Client.Patches
 
             if (!session.beginTakeoffSyncScheduled)
             {
+                Log.Message("SYNCED METHOD CALLED ON ALL CLIENTS");
                 session.beginTakeoffSyncScheduled = true;
                 SyncBeginTakeoffCutscene(__instance);
             }
@@ -181,6 +190,8 @@ namespace Multiplayer.Client.Patches
         {
             MpLog.Debug($"[MP] Patch_GravshipTakeoffEnded: Takeoff ended for tile {__instance.takeoffTile}.");
             if (Multiplayer.Client == null) return true;
+
+            Multiplayer.Client.Send(Packets.Client_Freeze, new object[] { false });
 
             GravshipTravelSession session = GravshipTravelSessionUtils.GetSession(__instance.takeoffTile);
             if (session == null)
@@ -439,16 +450,6 @@ namespace Multiplayer.Client.Patches
             if (Multiplayer.Client == null) return true;
             MpLog.Debug($"[MP] GravshipUtility_ArriveNewMap_Patch: Arriving at new map");
             return true; // Allow vanilla logic to run
-        }
-    }
-
-    [HarmonyPatch(typeof(FreezeManager), nameof(FreezeManager.DoIceMelting))]
-    public static class FreezeManager_DoIceMelting_Patch
-    {
-        static bool Prefix()
-        {
-            if (Multiplayer.Client == null) return true;
-            return false; // Deny vanilla logic to run
         }
     }
 
