@@ -147,6 +147,20 @@ namespace Multiplayer.Client
 
             Find.MainTabsRoot?.EscapeCurrentTab();
             Find.ColonistBar?.MarkColonistsDirty();
+
+            LongEventHandler.ExecuteWhenFinished(() => SyncNextThingID(Find.UniqueIDsManager.nextThingID));
+        }
+
+
+        [SyncMethod]
+        public static void SyncNextThingID(int id)
+        {
+            int curId = Find.UniqueIDsManager.nextThingID;
+
+            if (id > curId)
+            {
+                Find.UniqueIDsManager.nextThingID = id;
+            }
         }
     }
 }
