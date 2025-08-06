@@ -111,6 +111,9 @@ public static class DeferredStackTracingImpl
 
             if (stackUsage == RbpBased)
             {
+                if (rbp == 0)
+                    break;
+
                 stck = rbp;
                 rbp = *(long*)rbp;
                 continue;
