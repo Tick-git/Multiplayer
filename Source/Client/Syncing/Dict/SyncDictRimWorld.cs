@@ -1254,6 +1254,111 @@ namespace Multiplayer.Client
                 }, true // Implicit
             },
             #endregion
+
+            #region Transport Pot / Shuttle
+            {
+                (ByteWriter data, TransportersArrivalAction action) =>
+                {
+                    WriteSync(data, action.GetType());
+                    WriteSyncObject(data, action, action.GetType());
+                },
+                (ByteReader data) =>
+                {
+                    Type type = ReadSync<Type>(data);
+                    return (TransportersArrivalAction) ReadSyncObject(data, type);
+                }
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_FormCaravan action) => WriteSync(data, action.arrivalMessageKey),
+                (ByteReader data) => new TransportersArrivalAction_FormCaravan(ReadSync<string>(data))
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_GiveGift action) => WriteSync(data, action.settlement),
+                (ByteReader data) => new TransportersArrivalAction_GiveGift(ReadSync<Settlement>(data))
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_GiveToCaravan action) => WriteSync(data, action.caravan),
+                (ByteReader data) => new TransportersArrivalAction_GiveToCaravan(ReadSync<Caravan>(data))
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_VisitSpace action) => WriteSync(data, action.parent),
+                (ByteReader data) => new TransportersArrivalAction_VisitSpace(ReadSync<MapParent>(data))
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_Trade action) =>
+                {
+                    WriteSync(data, action.settlement);
+                    WriteSync(data, action.arrivalMessageKey);
+                },
+                (ByteReader data) =>
+                {
+                    var settlement = ReadSync<Settlement>(data);
+                    var arrivalMessageKey = ReadSync<string>(data);
+                    return new TransportersArrivalAction_Trade(settlement, arrivalMessageKey);
+                }
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_VisitSettlement action) =>
+                {
+                    WriteSync(data, action.settlement);
+                    WriteSync(data, action.arrivalMessageKey);
+                },
+                (ByteReader data) =>
+                {
+                    var settlement = ReadSync<Settlement>(data);
+                    var arrivalMessageKey = ReadSync<string>(data);
+                    return new TransportersArrivalAction_VisitSettlement(settlement, arrivalMessageKey);
+                }
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_AttackSettlement action) =>
+                {
+                    WriteSync(data, action.settlement);
+                    WriteSync(data, action.arrivalMode);
+                },
+                (ByteReader data) =>
+                {
+                    var settlement  = ReadSync<Settlement>(data);
+                    var arrivalMode = ReadSync<PawnsArrivalModeDef>(data);
+                    return new TransportersArrivalAction_AttackSettlement(settlement, arrivalMode);
+                }
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_LandInSpecificCell action) =>
+                {
+                    var parent = action.mapParent;
+                    var cell = action.cell;
+                    var rotation = action.rotation;
+                    var shuttle = action.landInShuttle;
+
+                    WriteSync(data, parent);
+                    WriteSync(data, cell);
+                    WriteSync(data, rotation);
+                    WriteSync(data, shuttle);
+                },
+                (ByteReader data) =>
+                {
+                    var parent = ReadSync<MapParent>(data);
+                    var cell = ReadSync<IntVec3>(data);
+                    var rotation = ReadSync<Rot4>(data);
+                    var shuttle = ReadSync<bool>(data);
+                    return new TransportersArrivalAction_LandInSpecificCell(parent, cell, rotation, shuttle);
+                }
+            },
+            {
+                (ByteWriter data, TransportersArrivalAction_VisitSite a) =>
+                {
+                    WriteSync(data, a.site);
+                    WriteSync(data, a.arrivalMode);
+                },
+                (ByteReader data) =>
+                {
+                    var site = ReadSync<Site>(data);
+                    var arrivalMode = ReadSync<PawnsArrivalModeDef>(data);
+                    return new TransportersArrivalAction_VisitSite(site, arrivalMode);
+                }
+            },
+            #endregion
         };
 
         class Dummy_ITab_Pawn_Visitor : ITab_Pawn_Visitor { }
