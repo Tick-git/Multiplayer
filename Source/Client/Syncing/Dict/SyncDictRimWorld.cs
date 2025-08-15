@@ -674,20 +674,23 @@ namespace Multiplayer.Client
                     if (sync.isWriting)
                     {
                         sync.Write(moveGravship.map);
-                        sync.Write(moveGravship.marker);
                         sync.Write(moveGravship.marker.GravshipRotation);
+
                         moveGravship.deselectedRotation = moveGravship.marker.GravshipRotation;
                     }
                     else
                     {
+                        GravshipLandingMarker marker = Find.GravshipController.landingMarker;
+
                         Map map = sync.Read<Map>();
-                        GravshipLandingMarker marker = sync.Read<GravshipLandingMarker>();
-                        Rot4 rot = sync.Read<Rot4>();
+                        var rot = sync.Read<Rot4>();
 
                         if (marker != null)
+                        {
                             marker.GravshipRotation = rot;
+                        }
 
-                        moveGravship = new Designator_MoveGravship(map, marker);
+                        moveGravship = Find.GravshipController.moveDesignator;
                         moveGravship.deselectedRotation = moveGravship.marker.GravshipRotation;
                     }
                 }, true, false

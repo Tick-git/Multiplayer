@@ -181,16 +181,15 @@ namespace Multiplayer.Client.Patches
     [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.Notify_LandingAreaConfirmationStarted))]
     public static class Patch_GravshipLandingPause
     {
-        static void Postfix(ref GravshipLandingMarker marker)
+        static void Postfix(GravshipLandingMarker marker, WorldComponent_GravshipController __instance)
         {
             if (Multiplayer.Client == null) return;
-            if (marker == null || marker.Map == null)
-            {
-                MpLog.Error("[MP] Patch_GravshipLandingPlacementPause: Marker or map is null, cannot pause for gravship landing.");
-                return;
-            }
 
-            GravshipTravelSessionUtils.SyncOpenSession(marker.gravship.initialTile, marker.Map);
+            // Log Error
+
+            var map = __instance.landingMap ?? marker.Map;
+
+            GravshipTravelSessionUtils.SyncOpenSession(marker.gravship.initialTile, map);
         }
     }
 
@@ -198,10 +197,10 @@ namespace Multiplayer.Client.Patches
     [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.WorldComponentOnGUI))]
     public static class Patch_GravshipLandingConfirmSync
     {
-        static void Prefix(WorldComponent_GravshipController __instance)
+        static bool Prefix(WorldComponent_GravshipController __instance)
         {
-            if (Multiplayer.Client == null) return;
-            if (__instance.landingMarker == null) return;
+            if (Multiplayer.Client == null) return true;
+            if (__instance.landingMarker == null) return true;
 
             if (__instance.LandingAreaConfirmationInProgress && !Find.ScreenshotModeHandler.Active)
             {
@@ -221,6 +220,8 @@ namespace Multiplayer.Client.Patches
                 }
                 TooltipHandler.TipRegion(rect2, "ConfirmLandGravshipDesc".Translate());
             }
+
+            return false;
         }
 
         [SyncMethod]
