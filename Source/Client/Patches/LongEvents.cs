@@ -1,5 +1,6 @@
 using HarmonyLib;
 using Multiplayer.Common;
+using NAudio.SoundFont;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -87,15 +88,29 @@ namespace Multiplayer.Client.Patches
     {
         readonly static MethodInfo OrginalMethod = AccessTools.Method(typeof(LongEventHandler), nameof(LongEventHandler.ExecuteToExecuteWhenFinished));
         readonly static MethodInfo ReplacementMethod = AccessTools.Method(typeof(PatchUpdateCurrentAsynchronousEventCleanUpOrder), nameof(ReorderCleanupCode));
+        readonly static MethodInfo ReplacementMethods = AccessTools.Method(typeof(PatchUpdateCurrentAsynchronousEventCleanUpOrder), nameof(TestThatReturnOnlyCalledInMultiplayer));
 
-        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions)
+        private static void TestThatReturnOnlyCalledInMultiplayer()
+        {
+            Log.Message("MULTIPLAYER");
+        }
+
+        readonly static MethodInfo MultiplayerClientGetter = AccessTools.PropertyGetter(typeof(Multiplayer), nameof(Multiplayer.Client));
+
+        static IEnumerable<CodeInstruction> Transpiler(IEnumerable<CodeInstruction> instructions, ILGenerator generator)
         {
             foreach (CodeInstruction instruction in instructions)
             {
                 if (instruction.Calls(OrginalMethod))
                 {
+                    var skipReturnLabel = generator.DefineLabel();
+
                     yield return new CodeInstruction(OpCodes.Call, ReplacementMethod);
+                    yield return new CodeInstruction(OpCodes.Call, MultiplayerClientGetter);
+                    yield return new CodeInstruction(OpCodes.Brfalse_S, skipReturnLabel);
+                    yield return new CodeInstruction(OpCodes.Call, ReplacementMethods);
                     yield return new CodeInstruction(OpCodes.Ret);
+                    yield return new CodeInstruction(OpCodes.Nop) { labels = { skipReturnLabel } };
                 }
                 else
                     yield return instruction;
@@ -104,6 +119,13 @@ namespace Multiplayer.Client.Patches
 
         public static void ReorderCleanupCode()
         {
+            if (Multiplayer.Client == null)
+            {
+                LongEventHandler.ExecuteToExecuteWhenFinished();
+                Log.Message("SINGLEPLAYER");
+                return; 
+            }
+
             Action callback = LongEventHandler.currentEvent.callback;
 
             LongEventHandler.currentEvent = null;
