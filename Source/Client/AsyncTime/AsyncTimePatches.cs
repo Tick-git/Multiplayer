@@ -50,6 +50,18 @@ namespace Multiplayer.Client.AsyncTime
         static bool Prefix() => Multiplayer.Client == null || !MapUpdateMarker.updating;
     }
 
+    [HarmonyPatch]
+    [HarmonyPriority(MpPriority.MpLast)]
+    static class CancelGlowGridUpdateWhileLanding
+    {
+        static IEnumerable<MethodBase> TargetMethods()
+        {
+            yield return AccessTools.Method(typeof(GlowGrid), nameof(GlowGrid.GlowGridUpdate_First));
+        }
+
+        static bool Prefix() => !WorldComponent_GravshipController.cutsceneInProgress;
+    }
+
     [HarmonyPatch(typeof(DateNotifier), nameof(DateNotifier.DateNotifierTick))]
     static class DateNotifierPatch
     {
