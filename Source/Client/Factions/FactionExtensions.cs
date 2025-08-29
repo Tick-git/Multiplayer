@@ -50,4 +50,23 @@ public static class FactionExtensions
 
         return faction != null;
     }
+
+    public static bool IsClientFaction(this Faction faction)
+    {
+        return faction == Multiplayer.RealPlayerFaction;
+    }
+
+    public static Faction Faction(this GlobalTargetInfo targetInfo)
+    {
+        if (targetInfo.HasWorldObject && targetInfo.WorldObject.Faction != null)
+            return targetInfo.WorldObject.Faction;
+
+        if (targetInfo.HasThing && targetInfo.Thing.Faction != null)
+            return targetInfo.Thing.Faction;
+
+        if (targetInfo.Map is { ParentFaction: not null })
+            return targetInfo.Map.ParentFaction;
+
+        return null;
+    }
 }

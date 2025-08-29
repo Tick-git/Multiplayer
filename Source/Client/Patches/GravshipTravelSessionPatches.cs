@@ -7,6 +7,7 @@ using RimWorld.Planet;
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Multiplayer.Client.Factions;
 using Verse;
 using Verse.Sound;
 
@@ -17,11 +18,13 @@ namespace Multiplayer.Client.Patches
     [HarmonyPatch(typeof(GravshipUtility), nameof(GravshipUtility.PreLaunchConfirmation))]
     public static class PatchGravshipPreLaunchConfirmation
     {
-        static void Prefix(Building_GravEngine engine, ref Action launchAction)
+        static bool Prefix(Building_GravEngine engine)
         {
-            if (Multiplayer.Client == null) return;
+            if (Multiplayer.Client == null) return true;
 
             GravshipTravelUtils.OpenSessionAt(engine.Map.Tile);
+
+            return engine.Faction.IsClientFaction();
         }
     }
 
@@ -135,19 +138,19 @@ namespace Multiplayer.Client.Patches
             if (Multiplayer.Client == null) return true;
             if (Multiplayer.ExecutingCmds) return true;
 
-            SyncBeginLanding(__instance);
+            SyncLandingMarkerTargetSelected(__instance);
 
             return false;
         }
 
         [SyncMethod]
-        public static void SyncBeginLanding(GravshipLandingMarker landingMarker)
+        public static void SyncLandingMarkerTargetSelected(GravshipLandingMarker landingMarker)
         {
             var gravshipController = Find.GravshipController;
 
-            if (landingMarker == null || landingMarker.Tile == null)
+            if (landingMarker == null)
             {
-                MpLog.Error($"[MP] SyncConfirmGravshipLanding: Marker [{landingMarker != null}] Tile [{landingMarker?.Tile != null}].");
+                MpLog.Error($"[MP] PatchBeginLandingToSyncWithClients: LandingMarker is null.");
                 return;
             }
 
@@ -187,20 +190,40 @@ namespace Multiplayer.Client.Patches
 
     #region Landing/Takeoff freeze
 
-    [HarmonyPatch]
-    public static class PatchGravshipCutsceneToFreeze
+    [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateTakeoff))]
+    public static class PatchGravshipInitiateTakeoff
     {
-        static IEnumerable<MethodBase> TargetMethods()
+        static bool Prefix(WorldComponent_GravshipController __instance, Building_GravEngine engine, PlanetTile targetTile)
         {
-            yield return AccessTools.Method(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateTakeoff));
-            yield return AccessTools.Method(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateLanding));
-        }
+            if (Multiplayer.Client == null) return true;
 
-        static void Postfix()
-        {
-            if (Multiplayer.Client == null) return;
+            if (Multiplayer.MultifactionEnabled)
+            {
+                GravshipMultifactionPatches.SkipTakeOffAnimation(__instance, engine, targetTile);
+                return false;
+            }
 
             GravshipTravelUtils.StartFreeze();
+            return true;
+        }
+    }
+
+    [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.InitiateLanding))]
+    public static class PatchGravshipCutsceneToFreeze
+    {
+        static bool Prefix(WorldComponent_GravshipController __instance, Gravship gravship, Map map, IntVec3 landingPos)
+        {
+            if (Multiplayer.Client == null) return true;
+
+            if (Multiplayer.MultifactionEnabled)
+            {
+                GravshipMultifactionPatches.SkipLandingAnimation(__instance, gravship, landingPos, map);
+                GravshipTravelUtils.CloseSessionAt(map.Tile);
+                return false;
+            }
+
+            GravshipTravelUtils.StartFreeze();
+            return true;
         }
     }
 
@@ -230,7 +253,6 @@ namespace Multiplayer.Client.Patches
             GravshipTravelUtils.StopFreeze();
             GravshipTravelUtils.CloseSessionAt(__instance.gravship.destinationTile);
         }
-
         static void Finalizer()
         {
             if (Multiplayer.Client == null) return;
