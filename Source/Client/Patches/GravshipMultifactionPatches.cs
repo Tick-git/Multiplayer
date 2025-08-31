@@ -90,74 +90,87 @@ public static class PatchGravshipArriveNewMapHandleFactionContext
     }
 }
 
-public static class GravshipCameraMultifactionPatches
+[HarmonyPatch]
+public static class PatchGravshipTryJumpMethods
 {
-    static bool runCameraMethods = true;
+    public static bool runCameraMethods = true;
 
-    [HarmonyPatch]
-    public static class PatchGravshipTryJumpMethods
+    static IEnumerable<MethodBase> TargetMethods()
     {
-        static IEnumerable<MethodBase> TargetMethods()
-        {
-            yield return MpMethodUtil.GetLambda(typeof(GravshipUtility), nameof(GravshipUtility.ArriveNewMap), lambdaOrdinal: 1);
-            yield return MpMethodUtil.GetLambda(typeof(GravshipUtility), nameof(GravshipUtility.ArriveExistingMap), lambdaOrdinal: 0);
-            yield return MpMethodUtil.GetLambda(typeof(GravshipLandingMarker), nameof(GravshipLandingMarker.SpawnSetup), lambdaOrdinal: 0);
-            yield return MpMethodUtil.GetLambda(typeof(CompPilotConsole), nameof(CompPilotConsole.StartChoosingDestination_NewTemp), lambdaOrdinal: 4);
-            yield return AccessTools.Method(typeof(GravshipLandingMarker), nameof(GravshipLandingMarker.BeginLanding));
-            yield return AccessTools.Method(typeof(GravshipUtility), nameof(GravshipUtility.TravelTo));
-        }
-
-        static void Prefix() => runCameraMethods = false;
-
-        static void Finalizer() => runCameraMethods = true;
+        yield return MpMethodUtil.GetLambda(typeof(GravshipUtility), nameof(GravshipUtility.ArriveNewMap), lambdaOrdinal: 1);
+        yield return MpMethodUtil.GetLambda(typeof(GravshipLandingMarker), nameof(GravshipLandingMarker.SpawnSetup), lambdaOrdinal: 0);
+        yield return MpMethodUtil.GetLambda(typeof(CompPilotConsole), nameof(CompPilotConsole.StartChoosingDestination_NewTemp), lambdaOrdinal: 4);
+        yield return AccessTools.Method(typeof(GravshipLandingMarker), nameof(GravshipLandingMarker.BeginLanding));
+        yield return AccessTools.Method(typeof(GravshipUtility), nameof(GravshipUtility.TravelTo));
     }
 
-    [HarmonyPatch(typeof(CameraJumper), nameof(CameraJumper.TryJump), [typeof(GlobalTargetInfo), typeof(CameraJumper.MovementMode)])]
-    public static class PatchTryJumpTargetInfoGravshipMultifaction
-    {
-        static bool Prefix(GlobalTargetInfo target, CameraJumper.MovementMode mode)
-        {
-            if (Multiplayer.Client == null) return true;
-            if (!Multiplayer.MultifactionEnabled) return true;
+    static void Prefix() => runCameraMethods = false;
 
-            return runCameraMethods || target.Faction().IsClientFaction();
-        }
+    static void Finalizer() => runCameraMethods = true;
+}
+
+[HarmonyPatch]
+public static class PatchGravshipArriveExistingMultifactionFeedback
+{
+    static IEnumerable<MethodBase> TargetMethods()
+    {
+        yield return MpMethodUtil.GetLambda(typeof(GravshipUtility), nameof(GravshipUtility.ArriveExistingMap), lambdaOrdinal: 0);
     }
 
-    // TODO: Test Arrive On Existing Map
-    [HarmonyPatch(typeof(CameraJumper), nameof(CameraJumper.TryJump), [typeof(IntVec3), typeof(Map), typeof(CameraJumper.MovementMode)])]
-    public static class PatchTryJumpMapGravshipMultifaction
+    static bool Prefix()
     {
-        static bool Prefix(IntVec3 cell, Map map, CameraJumper.MovementMode mode)
-        {
-            if (Multiplayer.Client == null) return true;
-            if (!Multiplayer.MultifactionEnabled) return true;
+        if (Multiplayer.Client == null) return true;
+        if (!Multiplayer.MultifactionEnabled) return true;
 
-            return runCameraMethods || map.ParentFaction.IsClientFaction();
-        }
+        return Find.GravshipController.landingMarker.Faction.IsClientFaction();
     }
+}
 
-    [HarmonyPatch(typeof(CameraShaker), nameof(CameraShaker.DoShake), [typeof(float), typeof(int)])]
-    public static class PatchGravshipCameraShakeMultifaction
+[HarmonyPatch(typeof(CameraJumper), nameof(CameraJumper.TryJump), [typeof(GlobalTargetInfo), typeof(CameraJumper.MovementMode)])]
+public static class PatchTryJumpTargetInfoGravshipMultifaction
+{
+    static bool Prefix(GlobalTargetInfo target)
     {
-        static bool Prefix()
-        {
-            if (Multiplayer.Client == null) return true;
-            if (!Multiplayer.MultifactionEnabled) return true;
+        if (Multiplayer.Client == null) return true;
+        if (!Multiplayer.MultifactionEnabled) return true;
 
-            return runCameraMethods;
-        }
+        return PatchGravshipTryJumpMethods.runCameraMethods || target.Faction().IsClientFaction();
     }
+}
 
-    [HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.Notify_LandingAreaConfirmationStarted))]
-    public static class PatchGravshipNotifyLandingAreaConfirmationStartedToSetFaction
+// TODO: Test Arrive On Existing Map
+[HarmonyPatch(typeof(CameraJumper), nameof(CameraJumper.TryJump), [typeof(IntVec3), typeof(Map), typeof(CameraJumper.MovementMode)])]
+public static class PatchTryJumpMapGravshipMultifaction
+{
+    static bool Prefix(Map map)
     {
-        static void Prefix(ref GravshipLandingMarker marker)
-        {
-            if (Multiplayer.Client == null) return;
-            if (!Multiplayer.MultifactionEnabled) return;
+        if (Multiplayer.Client == null) return true;
+        if (!Multiplayer.MultifactionEnabled) return true;
 
-            marker.factionInt = marker.gravship.Faction;
-        }
+        return PatchGravshipTryJumpMethods.runCameraMethods || map.ParentFaction.IsClientFaction();
+    }
+}
+
+[HarmonyPatch(typeof(CameraShaker), nameof(CameraShaker.DoShake), [typeof(float), typeof(int)])]
+public static class PatchGravshipCameraShakeMultifaction
+{
+    static bool Prefix()
+    {
+        if (Multiplayer.Client == null) return true;
+        if (!Multiplayer.MultifactionEnabled) return true;
+
+        return PatchGravshipTryJumpMethods.runCameraMethods;
+    }
+}
+
+[HarmonyPatch(typeof(WorldComponent_GravshipController), nameof(WorldComponent_GravshipController.Notify_LandingAreaConfirmationStarted))]
+public static class PatchGravshipNotifyLandingAreaConfirmationStartedToSetFaction
+{
+    static void Prefix(ref GravshipLandingMarker marker)
+    {
+        if (Multiplayer.Client == null) return;
+        if (!Multiplayer.MultifactionEnabled) return;
+
+        marker.factionInt = marker.gravship.Faction;
     }
 }

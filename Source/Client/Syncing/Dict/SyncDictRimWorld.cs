@@ -672,10 +672,14 @@ namespace Multiplayer.Client
             {
                 (SyncWorker sync, ref Designator_MoveGravship moveGravship) => {
                     if (sync.isWriting)
+                    {
                         sync.Write(moveGravship.marker.GravshipRotation);
+                        sync.Write(moveGravship.Map);
+                    }
                     else
                     {
                         var rot = sync.Read<Rot4>();
+                        var map = sync.Read<Map>();
 
                         var gravController = Find.GravshipController;
                         var marker = gravController.landingMarker;
@@ -685,6 +689,7 @@ namespace Multiplayer.Client
 
                         moveGravship = gravController.moveDesignator;
                         moveGravship.deselectedRotation = moveGravship.marker.GravshipRotation;
+                        moveGravship.map = map;
                     }
                 }, true, false
             },

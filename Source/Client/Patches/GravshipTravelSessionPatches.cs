@@ -36,6 +36,7 @@ namespace Multiplayer.Client.Patches
             return MpMethodUtil.GetLambda(typeof(GravshipUtility), nameof(GravshipUtility.PreLaunchConfirmation), lambdaOrdinal: 4);
         }
 
+        // TODO: Using Find.CurrentMap.Tile is not a good idea -> Canceling the session while being on another map is a problem
         static void Postfix(Dialog_MessageBox __instance)
         {
             if (Multiplayer.Client == null) return;
